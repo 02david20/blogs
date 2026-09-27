@@ -11,10 +11,10 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 const DIST = "dist";
-const BASE = "/blogs";
+const BASE = "";
 
 /** Public paths that exist only to bounce legacy URLs; never precache them. */
-const REDIRECT_DIRS = [/^\d{4}[\\/]/, /^archive[\\/]/, /^system designs[\\/]/];
+const REDIRECT_DIRS = [/^\d{4}[\\/]/, /^archive[\\/]/, /^system designs[\\/]/, /^blogs[\\/]/];
 
 const walk = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -43,7 +43,8 @@ const htmlFiles = files.filter((rel) => rel.endsWith(".html") && !isRedirect(rel
 const referenced = new Set();
 for (const rel of htmlFiles) {
   const html = readFileSync(join(DIST, rel), "utf8");
-  for (const match of html.matchAll(/["'(](\/blogs\/_astro\/[^"')\s]+)["')]/g)) {
+  const assetRef = new RegExp(`["'(](${BASE}/_astro/[^"')\\s]+)["')]`, "g");
+  for (const match of html.matchAll(assetRef)) {
     referenced.add(match[1]);
   }
 }

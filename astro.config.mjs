@@ -9,8 +9,7 @@ import { remarkMermaid } from "./src/lib/remark-mermaid.mjs";
 import { rehypeHeadingAnchors } from "./src/lib/rehype-heading-anchors.mjs";
 
 export default defineConfig({
-  site: "https://02david20.github.io",
-  base: "/blogs",
+  site: "https://engineering.sentinelnodes.cc",
   trailingSlash: "always",
 
   integrations: [
@@ -60,12 +59,23 @@ export default defineConfig({
   // Legacy Jekyll permalinks. Verified against the live feed before migration.
   // The circuit-breaker post's old URL contains literal spaces, so it cannot be
   // expressed as a route pattern — it ships as a stub in public/ instead.
-  // NOTE: Astro applies `base` to the redirect *key* but emits the value
-  // verbatim, so destinations must carry the `/blogs` prefix themselves.
+  // Legacy Jekyll permalinks, verified against the published feed before the
+  // migration. The site previously lived under a `/blogs` base on
+  // 02david20.github.io, so both the bare and `/blogs`-prefixed forms are
+  // covered. The circuit-breaker post's old URL contains literal spaces and
+  // cannot be expressed as a route — it ships as a stub in public/.
   redirects: {
-    "/2024/05/21/hello-world/": "/blogs/blog/hello-world/",
-    "/2025/12/28/dotnet-dumps/": "/blogs/blog/dotnet-dumps/",
-    "/2026/03/07/tdd-in-llm-era/": "/blogs/blog/tdd-in-llm-era/",
-    "/archive/": "/blogs/blog/",
+    "/2024/05/21/hello-world/": "/blog/hello-world/",
+    "/2025/12/28/dotnet-dumps/": "/blog/dotnet-dumps/",
+    "/2026/03/07/tdd-in-llm-era/": "/blog/tdd-in-llm-era/",
+    "/archive/": "/blog/",
+
+    "/blogs/": "/",
+    "/blogs/archive/": "/blog/",
+    "/blogs/about/": "/about/",
+    "/blogs/topics/": "/topics/",
+    "/blogs/2024/05/21/hello-world/": "/blog/hello-world/",
+    "/blogs/2025/12/28/dotnet-dumps/": "/blog/dotnet-dumps/",
+    "/blogs/2026/03/07/tdd-in-llm-era/": "/blog/tdd-in-llm-era/",
   },
 });

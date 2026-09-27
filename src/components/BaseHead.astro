@@ -32,8 +32,8 @@ const {
   noindex = false,
 } = Astro.props;
 
-/* Astro.url.pathname already carries the `/blogs` base, so this produces a
-   correct absolute URL — the old build emitted `//blogs/...` here. */
+/* Built from Astro.url.pathname against the configured site, which is what the
+   old Jekyll build got wrong — it emitted `//blogs/...` here. */
 const canonical = new URL(Astro.url.pathname, Astro.site);
 
 const ogImage = await getImage({

@@ -1,9 +1,10 @@
 /**
  * Single source of truth for base-aware URLs.
  *
- * The site is served from a sub-path (`/blogs`), which the previous Jekyll
- * build handled by hand-prepending `site.baseurl` in 44 places — and got
- * wrong in several of them. Everything internal goes through here instead.
+ * The site is served from the root of its custom domain, but everything
+ * internal still goes through here: the previous Jekyll build hand-prepended
+ * `site.baseurl` in 44 places and got it wrong in several. Changing `base` in
+ * astro.config.mjs is then a one-line change, not a site-wide search.
  */
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 

@@ -1,7 +1,7 @@
 # David Huynh — blog
 
 Personal blog about backend systems, infrastructure and reliability.
-Live at <https://02david20.github.io/blogs/>.
+Live at <https://engineering.sentinelnodes.cc/>.
 
 Built with [Astro](https://astro.build). Previously a Jekyll site on the Hux Blog theme;
 see `git log` before the `redesign/astro` branch for that history.
@@ -10,7 +10,7 @@ see `git log` before the `redesign/astro` branch for that history.
 
 ```bash
 npm install
-npm run dev      # http://localhost:4321/blogs/
+npm run dev      # http://localhost:4321/
 ```
 
 | Command | What it does |
@@ -23,7 +23,7 @@ npm run dev      # http://localhost:4321/blogs/
 ## Writing a post
 
 Add a `.md` (or `.mdx`) file to `src/content/blog/`. The filename becomes the URL:
-`src/content/blog/my-post.md` → `/blogs/blog/my-post/`.
+`src/content/blog/my-post.md` → `/blog/my-post/`.
 
 ```yaml
 ---
@@ -91,20 +91,24 @@ old Jekyll site and is no longer used once Pages is served from Actions.
 
 ### URLs
 
-Posts moved from Jekyll's dated permalinks to `/blogs/blog/<slug>/`. Every old URL still
-resolves:
+The site is served from the root of its custom domain. `public/CNAME` ships the
+domain in the build artifact so an Actions deploy cannot drop it.
+
+Posts moved from Jekyll's dated permalinks to `/blog/<slug>/`. The old site also sat
+under a `/blogs` base on `02david20.github.io`, so both forms of every legacy URL
+redirect:
 
 | Old | New |
 | --- | --- |
-| `/blogs/2024/05/21/hello-world/` | `/blogs/blog/hello-world/` |
-| `/blogs/2025/12/28/dotnet-dumps/` | `/blogs/blog/dotnet-dumps/` |
-| `/blogs/2026/03/07/tdd-in-llm-era/` | `/blogs/blog/tdd-in-llm-era/` |
-| `/blogs/system%20designs/design%20patterns/2026/03/07/circuit-breaker-pattern/` | `/blogs/blog/circuit-breaker-pattern/` |
-| `/blogs/archive/` | `/blogs/blog/` |
+| `/2025/12/28/dotnet-dumps/` and `/blogs/2025/12/28/dotnet-dumps/` | `/blog/dotnet-dumps/` |
+| `/2024/05/21/hello-world/` and `/blogs/...` | `/blog/hello-world/` |
+| `/2026/03/07/tdd-in-llm-era/` and `/blogs/...` | `/blog/tdd-in-llm-era/` |
+| `/system%20designs/design%20patterns/2026/03/07/circuit-breaker-pattern/` | `/blog/circuit-breaker-pattern/` |
+| `/archive/` | `/blog/` |
+| `/blogs/`, `/blogs/about/`, `/blogs/topics/` | `/`, `/about/`, `/topics/` |
 
-The first three and `/archive/` come from `redirects` in `astro.config.mjs`. The fourth
-contains literal spaces and cannot be expressed as a route, so it ships as a stub in
-`public/`. `/blogs/feed.xml` is unchanged.
+Most come from `redirects` in `astro.config.mjs`. The two space-containing ones cannot
+be expressed as routes, so they ship as stubs in `public/`. `/feed.xml` is unchanged.
 
 ### Service worker
 

@@ -5,7 +5,7 @@ import { SITE } from "../lib/site";
 import { getPublishedPosts } from "../lib/posts";
 import { url } from "../lib/url";
 
-/** Kept at /blogs/feed.xml — the same URL the Jekyll site published. */
+/** Kept at /feed.xml, matching the path the Jekyll site published. */
 export const GET: APIRoute = async (context) => {
   const posts = await getPublishedPosts();
 
