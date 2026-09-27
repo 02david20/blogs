@@ -45,7 +45,8 @@ const ogImage = await getImage({
 });
 const ogImageUrl = new URL(ogImage.src, Astro.site);
 
-const pageTitle = title === SITE.title ? SITE.title : `${title} — ${SITE.title}`;
+const pageTitle =
+  title === SITE.title ? `${SITE.title} — ${SITE.tagline}` : `${title} — ${SITE.title}`;
 
 const jsonLd =
   type === "article"
