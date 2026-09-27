@@ -1,0 +1,392 @@
+---
+/**
+ * A small ambient WebGL2 background: faint noise-warped "threads" with one
+ * brighter accent thread drifting through, plus a soft pointer well that
+ * warps the field toward the cursor like a hand pressed into cloth.
+ *
+ * Loosely inspired by the hero effect on tej.as/story (a WebGPU/WGSL shader
+ * whose "one thread" traces the site owner's life story chapter by chapter).
+ * This is a from-scratch reimplementation in plain WebGL2/GLSL against this
+ * site's own tokens — WebGL2 fallback support is far broader than WebGPU's
+ * today, and there's no chapter data here for the thread to trace, so it's
+ * a purely decorative drift rather than a plotted narrative.
+ *
+ * Sits absolutely positioned behind its parent (which must be
+ * `position: relative`) and never intercepts clicks. Renders one still frame
+ * and stops there under `prefers-reduced-motion: reduce`; on any WebGL2
+ * failure it just hides itself — the section it sits behind stands fine
+ * without it.
+ */
+---
+
+<div class="thread-field" data-thread-field>
+  <canvas data-thread-canvas aria-hidden="true"></canvas>
+</div>
+
+<style>
+  .thread-field {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .thread-field canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<script>
+  const VERT = `#version 300 es
+    const vec2 POS[3] = vec2[3](vec2(-1.0, -1.0), vec2(3.0, -1.0), vec2(-1.0, 3.0));
+    out vec2 v_uv;
+    void main() {
+      vec2 p = POS[gl_VertexID];
+      // Flip to a top-origin uv (0 at the top edge) to match ordinary CSS space.
+      v_uv = vec2((p.x + 1.0) * 0.5, 1.0 - (p.y + 1.0) * 0.5);
+      gl_Position = vec4(p, 0.0, 1.0);
+    }
+  `;
+
+  const FRAG = `#version 300 es
+    precision highp float;
+
+    uniform float u_time;
+    uniform float u_aspect;
+    uniform float u_scroll;
+    uniform float u_intensity;
+    uniform vec2  u_pointer;
+    uniform float u_pointerAmt;
+    uniform float u_threads;
+    uniform vec4  u_bone;   // rgb + overall weight
+    uniform vec4  u_accent; // rgb + overall weight
+
+    in vec2 v_uv;
+    out vec4 outColor;
+
+    // Dave Hoskins-style cheap 2D hash: good enough for a noise lattice.
+    float hash21(vec2 p) {
+      vec3 p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    float vnoise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      vec2 u = f * f * (3.0 - 2.0 * f);
+      float a = hash21(i);
+      float b = hash21(i + vec2(1.0, 0.0));
+      float c = hash21(i + vec2(0.0, 1.0));
+      float d = hash21(i + vec2(1.0, 1.0));
+      return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
+    }
+
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float amp = 0.5;
+      vec2 q = p;
+      for (int i = 0; i < 4; i++) {
+        v += amp * vnoise(q);
+        q *= 2.03;
+        amp *= 0.5;
+      }
+      return v;
+    }
+
+    void main() {
+      vec2 p = (v_uv - vec2(0.5)) * vec2(u_aspect, 1.0);
+      float t = u_time * 0.05 + u_scroll * 1.2;
+
+      // Warp the whole field with two layered noise octaves, like cloth
+      // shifting under its own weight.
+      float w1 = fbm(p * 1.5 + vec2(t, t * 0.5));
+      float w2 = fbm(p * 2.5 + vec2(w1 * 0.7 - t * 0.7, t * 0.3));
+      vec2 q = p + vec2(w1, w2) * 0.15;
+
+      // The pointer well: a Gaussian bump that pulls the warp toward the
+      // cursor and brightens the light there. Squared falloff keeps it
+      // local rather than sloshing across the whole field.
+      vec2 toPointer = q - u_pointer;
+      float r2 = dot(toPointer, toPointer);
+      float well = exp(-r2 * 11.0) * u_pointerAmt;
+      q -= toPointer * well * 0.55;
+
+      // Many faint threads: a triangular wave across the warped y, cored
+      // hard for the specular highlight and soft for the body.
+      float band = q.y * u_threads + w2 * 0.85;
+      float edge = abs(fract(band) - 0.5) * 2.0;
+      float lit = 1.0 - edge;
+      float core = pow(lit, 30.0);
+      float glow = pow(lit, 4.0);
+
+      float idx = floor(band);
+      float bright = 0.30 + 0.70 * hash21(vec2(idx, 7.0));
+
+      float field = (core * 0.95 + glow * 0.10) * bright;
+      field *= (1.0 + well * 2.0);
+
+      // One distinguished thread: not data, just a slow hand-drawn drift
+      // for the eye to follow, lying in the weave rather than on top of it.
+      float ride = 0.16 * sin(v_uv.x * 3.0 + t * 0.7)
+                 + 0.09 * sin(v_uv.x * 7.0 - t * 0.5)
+                 + w1 * 0.04;
+      float off = q.y - ride;
+      float threadCore = exp(-off * off * 34000.0);
+      float threadGlow = exp(-off * off * 1400.0);
+      float thread = threadCore * 1.1 + threadGlow * 0.15;
+
+      // Vignette plus a floor/ceiling fade so the field stays clear of the
+      // text sitting on top of it and the edges of its own box.
+      float vig = smoothstep(1.25, 0.30, length(p * vec2(0.8, 1.3)));
+      float floorFade = smoothstep(0.78, 0.32, v_uv.y);
+      float ceilFade = smoothstep(0.0, 0.08, v_uv.y);
+      float mask = vig * floorFade * ceilFade * u_intensity;
+
+      float fieldA = clamp(field, 0.0, 1.0) * u_bone.a;
+      float threadA = clamp(thread, 0.0, 1.0) * u_accent.a;
+
+      // Premultiplied output: colour already carries its own coverage.
+      vec3 rgb = u_bone.rgb * fieldA + u_accent.rgb * threadA;
+      float alpha = clamp(fieldA + threadA, 0.0, 1.0);
+
+      outColor = vec4(rgb * mask, alpha * mask);
+    }
+  `;
+
+  function parseCssColor(cssColor: string): [number, number, number] {
+    const m = cssColor.match(/rgba?\(([^)]+)\)/);
+    if (!m) return [1, 1, 1];
+    const parts = m[1].split(",").map((n) => parseFloat(n.trim()));
+    return [(parts[0] ?? 255) / 255, (parts[1] ?? 255) / 255, (parts[2] ?? 255) / 255];
+  }
+
+  /**
+   * Custom properties may themselves be `var(...)` references (this site's
+   * tokens are layered that way), and reading them back with
+   * `getComputedStyle(el).getPropertyValue('--x')` can hand you that
+   * reference back unresolved. Routing through a real property (`color`)
+   * forces full resolution regardless of how many hops the token takes.
+   */
+  function readColor(varName: string): [number, number, number] {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${varName})`;
+    probe.style.display = "none";
+    document.body.appendChild(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return parseCssColor(resolved);
+  }
+
+  function compile(gl: WebGL2RenderingContext, type: number, source: string): WebGLShader {
+    const shader = gl.createShader(type);
+    if (!shader) throw new Error("createShader failed");
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(shader);
+      gl.deleteShader(shader);
+      throw new Error(info || "shader compile failed");
+    }
+    return shader;
+  }
+
+  function setup(root: HTMLElement) {
+    const canvas = root.querySelector<HTMLCanvasElement>("[data-thread-canvas]");
+    const container = root.parentElement;
+    if (!canvas || !container) return;
+
+    const gl = canvas.getContext("webgl2", {
+      alpha: true,
+      premultipliedAlpha: true,
+      antialias: false,
+    });
+    if (!gl) {
+      root.hidden = true;
+      return;
+    }
+
+    let program: WebGLProgram;
+    try {
+      const vs = compile(gl, gl.VERTEX_SHADER, VERT);
+      const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG);
+      const prog = gl.createProgram();
+      if (!prog) throw new Error("createProgram failed");
+      gl.attachShader(prog, vs);
+      gl.attachShader(prog, fs);
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(prog) || "program link failed");
+      }
+      program = prog;
+    } catch (err) {
+      console.warn("[thread-field]", err);
+      root.hidden = true;
+      return;
+    }
+
+    gl.useProgram(program);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    const uniformNames = [
+      "u_time",
+      "u_aspect",
+      "u_scroll",
+      "u_intensity",
+      "u_pointer",
+      "u_pointerAmt",
+      "u_threads",
+      "u_bone",
+      "u_accent",
+    ] as const;
+    const uniforms = Object.fromEntries(
+      uniformNames.map((name) => [name, gl.getUniformLocation(program, name)]),
+    ) as Record<(typeof uniformNames)[number], WebGLUniformLocation | null>;
+
+    const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+    const state = {
+      dpr: Math.min(2, window.devicePixelRatio || 1),
+      aspect: 1,
+      scroll: 0,
+      intensity: 0,
+      pointer: [0, 0] as [number, number],
+      pointerTarget: [0, 0] as [number, number],
+      pointerAmt: 0,
+      pointerAmtTarget: 0,
+      threads: 18,
+      bone: [1, 1, 1, 0.4] as [number, number, number, number],
+      accent: [1, 1, 1, 0.75] as [number, number, number, number],
+      start: performance.now(),
+    };
+
+    const applyColors = () => {
+      const bone = readColor("--text-faint");
+      const accent = readColor("--accent");
+      state.bone = [...bone, 0.4];
+      state.accent = [...accent, 0.75];
+    };
+    applyColors();
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+      const w = Math.max(1, Math.round(rect.width * state.dpr));
+      const h = Math.max(1, Math.round(rect.height * state.dpr));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        gl.viewport(0, 0, w, h);
+      }
+      state.aspect = rect.width / Math.max(1, rect.height);
+    };
+    resize();
+    new ResizeObserver(resize).observe(container);
+    addEventListener("resize", resize, { passive: true });
+
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = container.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / Math.max(1, rect.width);
+      const y = (e.clientY - rect.top) / Math.max(1, rect.height);
+      state.pointerTarget = [(x - 0.5) * state.aspect, y - 0.5];
+      state.pointerAmtTarget = 1;
+    };
+    const onPointerLeave = () => {
+      state.pointerAmtTarget = 0;
+    };
+    if (!reduceMotion.matches) {
+      container.addEventListener("pointermove", onPointerMove, { passive: true });
+      container.addEventListener("pointerleave", onPointerLeave, { passive: true });
+    }
+
+    const updateScroll = () => {
+      const doc = document.documentElement;
+      const max = Math.max(1, doc.scrollHeight - doc.clientHeight);
+      state.scroll = Math.min(1, Math.max(0, doc.scrollTop / max));
+    };
+    addEventListener("scroll", updateScroll, { passive: true });
+    updateScroll();
+
+    const draw = (time: number) => {
+      const t = (time - state.start) / 1000;
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(uniforms.u_time, t);
+      gl.uniform1f(uniforms.u_aspect, state.aspect);
+      gl.uniform1f(uniforms.u_scroll, state.scroll);
+      gl.uniform1f(uniforms.u_intensity, state.intensity);
+      gl.uniform2fv(uniforms.u_pointer, state.pointer);
+      gl.uniform1f(uniforms.u_pointerAmt, state.pointerAmt);
+      gl.uniform1f(uniforms.u_threads, state.threads);
+      gl.uniform4fv(uniforms.u_bone, state.bone);
+      gl.uniform4fv(uniforms.u_accent, state.accent);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+
+    let raf = 0;
+    let visible = false;
+
+    const tick = (time: number) => {
+      state.intensity += (1 - state.intensity) * 0.04;
+      state.pointer[0] += (state.pointerTarget[0] - state.pointer[0]) * 0.08;
+      state.pointer[1] += (state.pointerTarget[1] - state.pointer[1]) * 0.08;
+      state.pointerAmt += (state.pointerAmtTarget - state.pointerAmt) * 0.06;
+      draw(time);
+      if (visible && !reduceMotion.matches) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = 0;
+      }
+    };
+
+    const start = () => {
+      if (raf || reduceMotion.matches) return;
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    };
+
+    new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          visible = entry.isIntersecting;
+          if (visible) start();
+          else stop();
+        }
+      },
+      { rootMargin: "120px" },
+    ).observe(root);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stop();
+      else if (visible) start();
+    });
+
+    new MutationObserver(() => {
+      applyColors();
+      if (reduceMotion.matches) draw(performance.now());
+    }).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      applyColors();
+      if (reduceMotion.matches) draw(performance.now());
+    });
+
+    if (reduceMotion.matches) {
+      state.intensity = 1;
+      draw(performance.now());
+    }
+  }
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-thread-field]")) {
+    setup(root);
+  }
+</script>

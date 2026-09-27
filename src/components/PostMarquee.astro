@@ -1,0 +1,269 @@
+---
+/**
+ * A pinned "anchor" card plus independently-looping rows of cards drifting
+ * behind/beside it in opposite directions — same mechanic as the
+ * awwwards.com/monogrid showcase clip, restyled to the site's own tokens.
+ *
+ * Mobile: the pin sits above two plain horizontal marquees (no overlap —
+ * absolute positioning at narrow widths is a good way to get a broken
+ * layout). Desktop (>=48rem): the pin is pulled out of flow and the first
+ * row tucks slightly under it, so cards visibly pass behind the anchor.
+ *
+ * `prefers-reduced-motion: reduce` drops the animation entirely; the tracks
+ * just sit still and only the (non-duplicated, focusable) first copy of
+ * each row is reachable.
+ */
+import { postUrl } from "../lib/url";
+
+interface MarqueePost {
+  id: string;
+  title: string;
+  description: string;
+  pubDate: Date;
+  tags?: string[];
+}
+
+interface Props {
+  posts: MarqueePost[];
+}
+
+const { posts } = Astro.props;
+
+const [pinned, ...rest] = posts;
+// Interleave rather than split into contiguous halves, so each row mixes
+// old and new posts instead of one row being "the older half".
+const rowA = rest.filter((_, i) => i % 2 === 0);
+const rowB = rest.filter((_, i) => i % 2 === 1);
+
+const labelFor = (post: MarqueePost) => ({
+  year: post.pubDate.getFullYear(),
+  tag: post.tags?.[0] ?? "post",
+});
+---
+
+{
+  pinned && rowA.length > 0 && rowB.length > 0 && (
+    <div class="marquee">
+      <a class="marquee__card marquee__pin" href={postUrl(pinned.id)}>
+        <span class="marquee__meta">
+          <span>{labelFor(pinned).year}</span>
+          <span>{labelFor(pinned).tag}</span>
+        </span>
+        <span class="marquee__title">{pinned.title}</span>
+        <span class="marquee__desc">{pinned.description}</span>
+      </a>
+
+      <div class="marquee__rows">
+        <div class="marquee__row">
+          <ul class="marquee__track marquee__track--left">
+            {[...rowA, ...rowA].map((post, i) => (
+              <li aria-hidden={i >= rowA.length ? "true" : undefined}>
+                <a
+                  class="marquee__card"
+                  href={postUrl(post.id)}
+                  tabindex={i >= rowA.length ? -1 : undefined}
+                >
+                  <span class="marquee__meta">
+                    <span>{labelFor(post).year}</span>
+                    <span>{labelFor(post).tag}</span>
+                  </span>
+                  <span class="marquee__title">{post.title}</span>
+                  <span class="marquee__desc">{post.description}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div class="marquee__row">
+          <ul class="marquee__track marquee__track--right">
+            {[...rowB, ...rowB].map((post, i) => (
+              <li aria-hidden={i >= rowB.length ? "true" : undefined}>
+                <a
+                  class="marquee__card"
+                  href={postUrl(post.id)}
+                  tabindex={i >= rowB.length ? -1 : undefined}
+                >
+                  <span class="marquee__meta">
+                    <span>{labelFor(post).year}</span>
+                    <span>{labelFor(post).tag}</span>
+                  </span>
+                  <span class="marquee__title">{post.title}</span>
+                  <span class="marquee__desc">{post.description}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .marquee {
+    position: relative;
+  }
+
+  .marquee__rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-top: var(--space-4);
+  }
+
+  .marquee__row {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 6%,
+      black 94%,
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 6%,
+      black 94%,
+      transparent
+    );
+  }
+
+  .marquee__track {
+    display: flex;
+    width: max-content;
+    gap: var(--space-4);
+    list-style: none;
+    padding: 0;
+  }
+
+  .marquee__track > li {
+    flex: 0 0 auto;
+  }
+
+  .marquee__card {
+    display: block;
+    width: clamp(15rem, 30vw, 20rem);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--accent) 10%, var(--bg-inset));
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .marquee__pin {
+    display: block;
+    width: clamp(16rem, 32vw, 22rem);
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--accent-contrast);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .marquee__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    letter-spacing: var(--tracking-caps);
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .marquee__pin .marquee__meta {
+    border-color: color-mix(in srgb, var(--accent-contrast) 30%, transparent);
+    color: color-mix(in srgb, var(--accent-contrast) 75%, transparent);
+  }
+
+  .marquee__title {
+    display: block;
+    margin-bottom: var(--space-1);
+    font-size: var(--text-md);
+    font-weight: 600;
+    line-height: var(--leading-snug);
+  }
+
+  .marquee__desc {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .marquee__pin .marquee__desc {
+    color: color-mix(in srgb, var(--accent-contrast) 88%, transparent);
+  }
+
+  .marquee__card:hover,
+  .marquee__card:focus-visible {
+    border-color: var(--accent);
+  }
+
+  /* Overlap only once there's room for it: the pin comes out of flow and
+     the first row is pulled up to tuck partly behind its lower edge. */
+  @media (min-width: 48rem) {
+    .marquee__pin {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 2;
+    }
+
+    .marquee__rows {
+      margin-top: 0;
+      padding-top: 9.5rem;
+    }
+
+    .marquee__row:first-of-type {
+      position: relative;
+      z-index: 1;
+      margin-top: calc(-1 * var(--space-6));
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .marquee__card {
+      transition: border-color var(--duration-base) var(--ease);
+    }
+
+    .marquee__track--left {
+      animation: marquee-left 42s linear infinite;
+    }
+
+    .marquee__track--right {
+      animation: marquee-right 50s linear infinite;
+    }
+
+    .marquee__row:hover .marquee__track,
+    .marquee__row:focus-within .marquee__track {
+      animation-play-state: paused;
+    }
+
+    @keyframes marquee-left {
+      from {
+        transform: translateX(0);
+      }
+      to {
+        transform: translateX(-50%);
+      }
+    }
+
+    @keyframes marquee-right {
+      from {
+        transform: translateX(-50%);
+      }
+      to {
+        transform: translateX(0);
+      }
+    }
+  }
+</style>
