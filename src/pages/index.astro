@@ -1,9 +1,11 @@
 ---
+import { Image } from "astro:assets";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PostListItem from "../components/PostListItem.astro";
 import { SITE } from "../lib/site";
 import { url, tagUrl } from "../lib/url";
 import { getPublishedPosts, readingTimeOf, tagCounts } from "../lib/posts";
+import logo from "../assets/site/logo.png";
 
 const posts = await getPublishedPosts();
 const [featured, ...rest] = posts;
@@ -14,6 +16,7 @@ const topics = tagCounts(posts).slice(0, 10);
 <BaseLayout title={SITE.title} description={SITE.description}>
   <div class="wrap wrap--wide home">
     <section class="intro">
+      <Image class="intro__logo" src={logo} alt="" width={56} height={56} />
       <p class="eyebrow">{SITE.tagline}</p>
       <h1 class="intro__heading">{SITE.name}</h1>
       <p class="intro__body">{SITE.intro}</p>
@@ -93,6 +96,12 @@ const topics = tagCounts(posts).slice(0, 10);
   .intro {
     max-width: 46ch;
     margin-bottom: var(--space-12);
+  }
+
+  .intro__logo {
+    display: block;
+    margin-bottom: var(--space-3);
+    border-radius: var(--radius-md);
   }
 
   .intro__heading {
