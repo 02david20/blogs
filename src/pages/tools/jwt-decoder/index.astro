@@ -1,0 +1,239 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("jwt-decoder")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["base64", "hash-generator", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-field">
+        <label for="jwt-input">JWT</label>
+        <textarea
+          id="jwt-input"
+          class="tool-textarea"
+          placeholder="Paste a JWT — header.payload.signature"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <p id="jwt-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="jwt-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+
+    <div id="jwt-results" hidden>
+      <div class="tool-panel">
+        <p class="tool-error jwt-verify-notice" role="alert">
+          This tool only decodes the token — it does <strong>not</strong> verify the signature.
+          Nothing here confirms this token is genuine, untampered, or was really issued by whoever
+          it claims. Never treat a decoded token as trusted without verifying its signature server-side.
+        </p>
+
+        <div class="tool-grid tool-grid--split">
+          <div class="tool-field">
+            <label for="jwt-header">Header</label>
+            <textarea id="jwt-header" class="tool-textarea" readonly spellcheck="false"></textarea>
+            <div class="tool-toolbar">
+              <button type="button" id="jwt-copy-header" class="tool-btn">Copy header</button>
+            </div>
+          </div>
+          <div class="tool-field">
+            <label for="jwt-payload">Payload</label>
+            <textarea id="jwt-payload" class="tool-textarea" readonly spellcheck="false"></textarea>
+            <div class="tool-toolbar">
+              <button type="button" id="jwt-copy-payload" class="tool-btn">Copy payload</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="jwt-claims" class="jwt-claims" hidden>
+          <p class="tool-field__label">Timestamp claims</p>
+          <ul id="jwt-claims-list" class="jwt-claims__list"></ul>
+        </div>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>JWT structure: header.payload.signature</h2>
+  <p>
+    A JSON Web Token is three base64url-encoded segments joined by dots. The{" "}
+    <strong>header</strong> names the signing algorithm and token type. The{" "}
+    <strong>payload</strong> carries the claims — whatever data the issuer put in the token, like a
+    user id or an expiry time. Both of these are only <em>encoded</em>, not encrypted — anyone who
+    has the token can decode the header and payload without any key at all, which is exactly what
+    this tool does. The <strong>signature</strong> is different: it's a cryptographic value computed
+    over the header and payload using a secret or private key, and it's what a server checks to
+    confirm the token hasn't been altered since it was issued.
+  </p>
+
+  <h2>What this tool does — and doesn't</h2>
+  <p>
+    This tool decodes the header and payload segments locally in your browser and shows you their
+    JSON contents. That's it. It does <strong>not</strong> verify the signature, and it{" "}
+    <strong>cannot</strong> tell you whether the token is genuine, whether it was really issued by
+    the party it claims to be from, or whether it has been tampered with. Decoding a JWT only tells
+    you what the token <em>claims</em> — verifying it tells you whether to <em>believe</em> those
+    claims.
+  </p>
+  <p>
+    Verifying a signature requires the issuer's secret (for HMAC algorithms like HS256) or public
+    key (for RSA/ECDSA algorithms like RS256/ES256) — something that, by design, should never be
+    embedded in a client-side browser tool. Signature verification belongs on your server, or in a
+    trusted backend that holds the right key material.
+  </p>
+
+  <h2>Common claims</h2>
+  <ul>
+    <li><code>iss</code> — issuer: who created and signed the token.</li>
+    <li><code>sub</code> — subject: the entity the token is about, usually a user id.</li>
+    <li><code>aud</code> — audience: who the token is intended for.</li>
+    <li><code>exp</code> — expiration time: seconds since the Unix epoch after which the token is invalid.</li>
+    <li><code>iat</code> — issued at: seconds since the Unix epoch when the token was created.</li>
+    <li><code>nbf</code> — not before: seconds since the Unix epoch before which the token isn't valid yet.</li>
+  </ul>
+
+  <h2>Example</h2>
+  <pre><code>{`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ
+.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+→ header:  { "alg": "HS256", "typ": "JWT" }
+→ payload: { "sub": "1234567890", "name": "John Doe", "iat": 1516239022 }`}</code></pre>
+</ToolLayout>
+
+<style>
+  .jwt-verify-notice {
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+  }
+
+  .jwt-claims {
+    margin-top: var(--space-4);
+  }
+
+  .jwt-claims__list {
+    list-style: none;
+    padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, setError } from "../../../lib/tools-client";
+
+  const input = document.getElementById("jwt-input") as HTMLTextAreaElement;
+  const errorEl = document.getElementById("jwt-error") as HTMLParagraphElement;
+  const clearBtn = document.getElementById("jwt-clear") as HTMLButtonElement;
+
+  const resultsEl = document.getElementById("jwt-results") as HTMLDivElement;
+  const headerOut = document.getElementById("jwt-header") as HTMLTextAreaElement;
+  const payloadOut = document.getElementById("jwt-payload") as HTMLTextAreaElement;
+  const copyHeaderBtn = document.getElementById("jwt-copy-header") as HTMLButtonElement;
+  const copyPayloadBtn = document.getElementById("jwt-copy-payload") as HTMLButtonElement;
+  const claimsWrap = document.getElementById("jwt-claims") as HTMLDivElement;
+  const claimsList = document.getElementById("jwt-claims-list") as HTMLUListElement;
+
+  const TIMESTAMP_CLAIMS = ["exp", "iat", "nbf"] as const;
+
+  function base64UrlDecode(segment: string): string {
+    const base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+
+  function formatTimestampClaim(name: string, value: unknown): string {
+    if (typeof value !== "number") {
+      return `${name}: ${JSON.stringify(value)} (not a number — can't convert to a date)`;
+    }
+    const date = new Date(value * 1000);
+    const suffix = name === "exp" && value * 1000 < Date.now() ? " (expired)" : "";
+    return `${name}: ${value} → ${date.toLocaleString()} (${date.toISOString()})${suffix}`;
+  }
+
+  function reset() {
+    resultsEl.hidden = true;
+    claimsWrap.hidden = true;
+    headerOut.value = "";
+    payloadOut.value = "";
+    claimsList.innerHTML = "";
+  }
+
+  function process() {
+    const value = input.value.trim();
+    if (value === "") {
+      reset();
+      setError(errorEl, null);
+      return;
+    }
+
+    const parts = value.split(".");
+    if (parts.length !== 3) {
+      reset();
+      setError(
+        errorEl,
+        `This doesn't look like a JWT — expected 3 dot-separated parts, got ${parts.length}.`
+      );
+      return;
+    }
+
+    try {
+      const header = JSON.parse(base64UrlDecode(parts[0]));
+      const payload = JSON.parse(base64UrlDecode(parts[1]));
+
+      headerOut.value = JSON.stringify(header, null, 2);
+      payloadOut.value = JSON.stringify(payload, null, 2);
+
+      claimsList.innerHTML = "";
+      let claimCount = 0;
+      for (const claim of TIMESTAMP_CLAIMS) {
+        if (claim in payload) {
+          const li = document.createElement("li");
+          li.textContent = formatTimestampClaim(claim, payload[claim]);
+          claimsList.appendChild(li);
+          claimCount++;
+        }
+      }
+      claimsWrap.hidden = claimCount === 0;
+
+      resultsEl.hidden = false;
+      setError(errorEl, null);
+    } catch {
+      reset();
+      setError(
+        errorEl,
+        "Couldn't decode this token — the header or payload segment isn't valid base64url-encoded JSON."
+      );
+    }
+  }
+
+  input.addEventListener("input", process);
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    reset();
+    setError(errorEl, null);
+    input.focus();
+  });
+
+  copyHeaderBtn.addEventListener("click", () => copyToClipboard(headerOut.value, copyHeaderBtn));
+  copyPayloadBtn.addEventListener("click", () => copyToClipboard(payloadOut.value, copyPayloadBtn));
+</script>

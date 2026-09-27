@@ -1,0 +1,370 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("json-to-typescript")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["json-formatter", "regex-tester", "base64"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="jts-mode">Output</label>
+          <select id="jts-mode" class="tool-select">
+            <option value="interface">interface</option>
+            <option value="type">type alias</option>
+          </select>
+        </div>
+        <div class="tool-field">
+          <label for="jts-name">Root type name</label>
+          <input id="jts-name" class="tool-input" type="text" value="Root" spellcheck="false" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="jts-input">JSON input</label>
+          <textarea
+            id="jts-input"
+            class="tool-textarea"
+            placeholder={`{"id": 1, "name": "example"}`}
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="jts-output">Generated TypeScript</label>
+          <textarea id="jts-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="jts-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="jts-copy" class="tool-btn tool-btn--primary">Copy</button>
+        <button type="button" id="jts-download" class="tool-btn">Download .ts</button>
+        <button type="button" id="jts-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>How JSON types map to TypeScript</h2>
+  <ul>
+    <li><code>string</code> → <code>string</code></li>
+    <li><code>number</code> → <code>number</code></li>
+    <li><code>true</code> / <code>false</code> → <code>boolean</code></li>
+    <li><code>null</code> → <code>null</code> on its own, or <code>unknown | null</code> when a key's only sample value is <code>null</code> (there's nothing else to infer a real type from)</li>
+    <li>an array → <code>T[]</code>, where <code>T</code> is inferred from every element, not just the first</li>
+    <li>an object → a new named interface (or type alias), generated recursively from its own keys</li>
+  </ul>
+  <p>
+    The root of the JSON sample doesn't have to be an object — a bare array or primitive at the top
+    level is handled too, producing a single <code>type Root = ...;</code> declaration instead of an
+    interface.
+  </p>
+
+  <h2>Handling inconsistent data</h2>
+  <p>
+    Real-world JSON samples are rarely perfectly uniform — an array of "the same kind of thing" often
+    has objects with slightly different fields, because some data is optional or was added later.
+    This tool handles that by looking at <strong>every</strong> element of an array before generating
+    a type, not just the first one:
+  </p>
+  <ul>
+    <li>It collects the union of all keys seen across every object in the array.</li>
+    <li>A key present on every element becomes a required field; a key present on only some elements becomes optional (<code>key?:</code>).</li>
+    <li>A key's type is inferred from whichever elements actually have it — if those values disagree in shape too, they're merged the same way, recursively.</li>
+    <li>If a key is <code>null</code> on some elements and something concrete on others, the real type is inferred from the non-null occurrences and <code>| null</code> is appended.</li>
+  </ul>
+
+  <h2>Example</h2>
+  <p>Given this sample, where the second user has an extra field the first one lacks:</p>
+  <pre><code>{`{
+  "users": [
+    { "id": 1, "name": "a" },
+    { "id": 2, "name": "b", "email": "b@x.com" }
+  ]
+}`}</code></pre>
+  <p>this tool generates:</p>
+  <pre><code>{`interface User {
+  id: number;
+  name: string;
+  email?: string;
+}
+
+interface Root {
+  users: User[];
+}`}</code></pre>
+  <p>
+    <code>email</code> is marked optional because it only appears on one of the two sample elements —
+    exactly the kind of inconsistency that makes hand-writing these interfaces tedious and error-prone.
+  </p>
+</ToolLayout>
+
+<script>
+  import { copyToClipboard, download, setError } from "../../../lib/tools-client";
+
+  type JSONValue = null | boolean | number | string | JSONValue[] | { [key: string]: JSONValue };
+
+  interface CollectedInterface {
+    name: string;
+    signature: string;
+    fields: string;
+  }
+
+  const input = document.getElementById("jts-input") as HTMLTextAreaElement;
+  const output = document.getElementById("jts-output") as HTMLTextAreaElement;
+  const modeSelect = document.getElementById("jts-mode") as HTMLSelectElement;
+  const nameInput = document.getElementById("jts-name") as HTMLInputElement;
+  const errorEl = document.getElementById("jts-error") as HTMLParagraphElement;
+  const copyBtn = document.getElementById("jts-copy") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("jts-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("jts-clear") as HTMLButtonElement;
+
+  function toPascalCase(input: string): string {
+    const cleaned = input.replace(/[^a-zA-Z0-9]+/g, " ").trim();
+    if (!cleaned) return "";
+    let result = cleaned
+      .split(/\s+/)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join("");
+    if (/^[0-9]/.test(result)) result = `T${result}`;
+    return result;
+  }
+
+  function singularize(word: string): string {
+    if (/[aeiou]us$/i.test(word)) return word;
+    if (/ies$/i.test(word) && word.length > 3) return word.slice(0, -3) + "y";
+    if (/ses$/i.test(word) && word.length > 3) return word.slice(0, -2);
+    if (/ss$/i.test(word)) return word;
+    if (/s$/i.test(word) && word.length > 1) return word.slice(0, -1);
+    return word;
+  }
+
+  function elementNameFor(containerName: string): string {
+    const singular = singularize(containerName);
+    return singular === containerName ? `${containerName}Item` : singular;
+  }
+
+  function safePropertyName(key: string): string {
+    return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : JSON.stringify(key);
+  }
+
+  function registerInterface(
+    baseName: string,
+    signature: string,
+    body: string,
+    interfaces: Map<string, CollectedInterface>,
+    order: string[]
+  ): string {
+    let candidate = baseName || "Obj";
+    let n = 2;
+    while (interfaces.has(candidate) && interfaces.get(candidate)!.signature !== signature) {
+      candidate = `${baseName || "Obj"}${n}`;
+      n += 1;
+    }
+    if (!interfaces.has(candidate)) {
+      interfaces.set(candidate, { name: candidate, signature, fields: body });
+      order.push(candidate);
+    }
+    return candidate;
+  }
+
+  function isPlainObject(value: JSONValue): value is { [key: string]: JSONValue } {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
+  }
+
+  function inferMergedObjectType(
+    objectElements: { [key: string]: JSONValue }[],
+    nameHint: string,
+    interfaces: Map<string, CollectedInterface>,
+    order: string[]
+  ): string {
+    const allKeys: string[] = [];
+    const seen = new Set<string>();
+    for (const obj of objectElements) {
+      for (const key of Object.keys(obj)) {
+        if (!seen.has(key)) {
+          seen.add(key);
+          allKeys.push(key);
+        }
+      }
+    }
+
+    const total = objectElements.length;
+    const fieldLines: string[] = [];
+    const signatureParts: string[] = [];
+
+    for (const key of allKeys) {
+      const present = objectElements.filter((obj) => Object.prototype.hasOwnProperty.call(obj, key));
+      const optional = present.length < total;
+      const values = present.map((obj) => obj[key]);
+      const childName = toPascalCase(key) || "Value";
+      const type = mergeValueTypes(values, childName, interfaces, order);
+      fieldLines.push(`  ${safePropertyName(key)}${optional ? "?" : ""}: ${type};`);
+      signatureParts.push(`${key}${optional ? "?" : ""}:${type}`);
+    }
+
+    const body = fieldLines.join("\n");
+    const signature = signatureParts.join(";");
+    const baseName = toPascalCase(nameHint) || "Obj";
+    return registerInterface(baseName, signature, body, interfaces, order);
+  }
+
+  function inferArrayType(
+    arr: JSONValue[],
+    nameHint: string,
+    interfaces: Map<string, CollectedInterface>,
+    order: string[]
+  ): string {
+    if (arr.length === 0) return "unknown[]";
+
+    const elementName = elementNameFor(nameHint);
+    const typeSet = new Set<string>();
+
+    const objectElements = arr.filter(isPlainObject);
+    const arrayElements = arr.filter((el): el is JSONValue[] => Array.isArray(el));
+
+    if (objectElements.length > 0) {
+      typeSet.add(inferMergedObjectType(objectElements, elementName, interfaces, order));
+    }
+    if (arrayElements.length > 0) {
+      for (const nested of arrayElements) {
+        typeSet.add(inferArrayType(nested, elementName, interfaces, order));
+      }
+    }
+    for (const el of arr) {
+      if (el === null) {
+        typeSet.add("null");
+        continue;
+      }
+      if (Array.isArray(el) || typeof el === "object") continue;
+      typeSet.add(inferType(el, elementName, interfaces, order));
+    }
+
+    if (typeSet.size === 1) {
+      return `${[...typeSet][0]}[]`;
+    }
+    return `(${[...typeSet].join(" | ")})[]`;
+  }
+
+  function mergeValueTypes(
+    values: JSONValue[],
+    nameHint: string,
+    interfaces: Map<string, CollectedInterface>,
+    order: string[]
+  ): string {
+    const nonNull = values.filter((v) => v !== null);
+    const hasNull = nonNull.length !== values.length;
+
+    if (nonNull.length === 0) {
+      return hasNull ? "unknown | null" : "unknown";
+    }
+
+    const objectValues = nonNull.filter(isPlainObject);
+    const arrayValues = nonNull.filter((v): v is JSONValue[] => Array.isArray(v));
+    const primitiveValues = nonNull.filter((v) => typeof v !== "object");
+
+    const parts = new Set<string>();
+
+    if (objectValues.length > 0) {
+      parts.add(inferMergedObjectType(objectValues, nameHint, interfaces, order));
+    }
+    if (arrayValues.length > 0) {
+      const combinedElements = arrayValues.flat();
+      parts.add(inferArrayType(combinedElements, nameHint, interfaces, order));
+    }
+    for (const p of primitiveValues) {
+      parts.add(inferType(p, nameHint, interfaces, order));
+    }
+
+    let result = parts.size === 1 ? [...parts][0] : `(${[...parts].join(" | ")})`;
+    if (hasNull) result += " | null";
+    return result;
+  }
+
+  function inferType(
+    value: JSONValue,
+    nameHint: string,
+    interfaces: Map<string, CollectedInterface>,
+    order: string[]
+  ): string {
+    if (value === null) return "null";
+    if (typeof value === "string") return "string";
+    if (typeof value === "number") return "number";
+    if (typeof value === "boolean") return "boolean";
+    if (Array.isArray(value)) return inferArrayType(value, nameHint, interfaces, order);
+    if (typeof value === "object") return inferMergedObjectType([value], nameHint, interfaces, order);
+    return "unknown";
+  }
+
+  function convert(jsonText: string, rootName: string, mode: "interface" | "type"): string {
+    const parsed = JSON.parse(jsonText) as JSONValue;
+    const interfaces = new Map<string, CollectedInterface>();
+    const order: string[] = [];
+    const rootTypeName = toPascalCase(rootName) || "Root";
+
+    const rootType = inferType(parsed, rootTypeName, interfaces, order);
+
+    const blocks = order.map((name) => {
+      const iface = interfaces.get(name)!;
+      if (mode === "interface") {
+        return iface.fields ? `interface ${iface.name} {\n${iface.fields}\n}` : `interface ${iface.name} {}`;
+      }
+      return iface.fields ? `type ${iface.name} = {\n${iface.fields}\n};` : `type ${iface.name} = {};`;
+    });
+
+    const rootIsGeneratedInterface =
+      order.length > 0 && order[order.length - 1] === rootTypeName && rootType === rootTypeName;
+
+    if (rootIsGeneratedInterface) {
+      return blocks.join("\n\n");
+    }
+
+    const rootDecl = `type ${rootTypeName} = ${rootType};`;
+    return [...blocks, rootDecl].join("\n\n");
+  }
+
+  function process() {
+    const jsonText = input.value;
+    if (jsonText.trim() === "") {
+      output.value = "";
+      setError(errorEl, null);
+      return;
+    }
+
+    const mode = modeSelect.value as "interface" | "type";
+    const rootName = nameInput.value.trim() || "Root";
+
+    try {
+      output.value = convert(jsonText, rootName, mode);
+      setError(errorEl, null);
+    } catch (err) {
+      output.value = "";
+      setError(errorEl, err instanceof Error ? err.message : "Invalid JSON.");
+    }
+  }
+
+  input.addEventListener("input", process);
+  modeSelect.addEventListener("change", process);
+  nameInput.addEventListener("input", process);
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  downloadBtn.addEventListener("click", () => {
+    const rootName = toPascalCase(nameInput.value.trim()) || "Root";
+    download(`${rootName}.ts`, output.value, "text/typescript");
+  });
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    setError(errorEl, null);
+    input.focus();
+  });
+</script>

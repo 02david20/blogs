@@ -1,0 +1,273 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("base64")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["url-encoder", "hash-generator", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="b64-op">Operation</label>
+          <select id="b64-op" class="tool-select">
+            <option value="encode">Encode</option>
+            <option value="decode">Decode</option>
+          </select>
+        </div>
+        <div class="tool-field tool-field--checkbox">
+          <label for="b64-url-safe">
+            <input type="checkbox" id="b64-url-safe" />
+            URL-safe (<code>-_</code>, no padding)
+          </label>
+        </div>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="b64-input">Input</label>
+          <textarea
+            id="b64-input"
+            class="tool-textarea"
+            placeholder="Paste text or Base64…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="b64-output">Result</label>
+          <textarea id="b64-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="b64-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="b64-swap" class="tool-btn">Swap</button>
+        <button type="button" id="b64-copy" class="tool-btn tool-btn--primary">Copy result</button>
+        <button type="button" id="b64-download" class="tool-btn">Download result as file</button>
+        <button type="button" id="b64-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <div class="tool-field">
+        <label for="b64-file">File → Base64</label>
+        <input type="file" id="b64-file" class="tool-input" />
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>What is Base64?</h2>
+  <p>
+    Base64 is an encoding scheme that represents arbitrary binary data — or text — using only 64
+    printable ASCII characters (<code>A–Z</code>, <code>a–z</code>, <code>0–9</code>,{" "}
+    <code>+</code>, <code>/</code>, with <code>=</code> as padding). It exists because many
+    protocols and formats (JSON, email, URLs) are only safe for text, not raw bytes. Encoding
+    trades space — Base64 output is about 33% larger than the original — for guaranteed
+    text-safety.
+  </p>
+
+  <h2>Base64 vs. encryption</h2>
+  <p>
+    <strong>Base64 is not encryption and provides no security whatsoever.</strong> It is a reversible,
+    public, keyless transformation — anyone can decode a Base64 string with a single line of code
+    or a browser tab like this one. If you see credentials, tokens, or personal data encoded as
+    Base64 (for example in a JWT or an HTTP Basic Auth header), treat them as being sent in the
+    clear. Never rely on Base64 to protect sensitive data; use real encryption (and TLS in transit)
+    for that.
+  </p>
+
+  <h2>Common Base64 use cases</h2>
+  <ul>
+    <li>Embedding binary data (images, files) inside JSON, XML, or other text-only formats.</li>
+    <li>
+      Data URIs — inlining a small image directly in HTML/CSS with <code
+        >data:image/png;base64,...</code
+      >, avoiding an extra network request.
+    </li>
+    <li>
+      Email attachments — MIME encodes binary attachments as Base64 so they survive text-only mail
+      transports.
+    </li>
+    <li>
+      HTTP Basic Authentication — the <code>Authorization: Basic</code> header is <code
+        >username:password</code
+      > Base64-encoded, not encrypted; it's only safe over HTTPS.
+    </li>
+  </ul>
+
+  <h2>Standard vs. URL-safe Base64</h2>
+  <p>
+    Standard Base64 uses <code>+</code> and <code>/</code>, both of which have special meaning in
+    URLs and file paths (<code>+</code> can mean a space in query strings; <code>/</code> is a path
+    separator). <strong>URL-safe Base64</strong> substitutes <code>-</code> for <code>+</code> and{" "}
+    <code>_</code> for <code>/</code>, and conventionally omits the trailing <code>=</code> padding
+    entirely, since padding can also need escaping. Use URL-safe encoding whenever the result will
+    land in a URL, a filename, or a cookie value; use standard Base64 everywhere else (JSON bodies,
+    email, data URIs).
+  </p>
+</ToolLayout>
+
+<script>
+  import { copyToClipboard, setError } from "../../../lib/tools-client";
+
+  const input = document.getElementById("b64-input") as HTMLTextAreaElement;
+  const output = document.getElementById("b64-output") as HTMLTextAreaElement;
+  const opSelect = document.getElementById("b64-op") as HTMLSelectElement;
+  const urlSafeCheckbox = document.getElementById("b64-url-safe") as HTMLInputElement;
+  const errorEl = document.getElementById("b64-error") as HTMLParagraphElement;
+  const swapBtn = document.getElementById("b64-swap") as HTMLButtonElement;
+  const copyBtn = document.getElementById("b64-copy") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("b64-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("b64-clear") as HTMLButtonElement;
+  const fileInput = document.getElementById("b64-file") as HTMLInputElement;
+
+  /** Encodes raw bytes as Base64, chunked to avoid blowing the call stack on large files. */
+  function bytesToBase64(bytes: Uint8Array): string {
+    const chunkSize = 0x8000;
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(base64: string): Uint8Array {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  function toUrlSafe(base64: string): string {
+    return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function fromUrlSafe(value: string): string {
+    let standard = value.replace(/-/g, "+").replace(/_/g, "/");
+    const remainder = standard.length % 4;
+    if (remainder) standard += "=".repeat(4 - remainder);
+    return standard;
+  }
+
+  function encode(value: string): string {
+    const bytes = new TextEncoder().encode(value);
+    const base64 = bytesToBase64(bytes);
+    return urlSafeCheckbox.checked ? toUrlSafe(base64) : base64;
+  }
+
+  function decode(value: string): string {
+    const normalized = urlSafeCheckbox.checked ? fromUrlSafe(value) : value;
+    const bytes = base64ToBytes(normalized);
+    return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  }
+
+  function process() {
+    const value = input.value;
+    if (value === "") {
+      output.value = "";
+      setError(errorEl, null);
+      return;
+    }
+
+    const isEncode = opSelect.value === "encode";
+
+    try {
+      output.value = isEncode ? encode(value) : decode(value);
+      setError(errorEl, null);
+    } catch {
+      output.value = "";
+      setError(
+        errorEl,
+        isEncode
+          ? "Could not encode this input."
+          : "Invalid Base64 input — check for stray characters or incorrect padding.",
+      );
+    }
+  }
+
+  input.addEventListener("input", process);
+  opSelect.addEventListener("change", process);
+  urlSafeCheckbox.addEventListener("change", process);
+
+  swapBtn.addEventListener("click", () => {
+    const previousInput = input.value;
+    input.value = output.value;
+    output.value = previousInput;
+    opSelect.value = opSelect.value === "encode" ? "decode" : "encode";
+    process();
+  });
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  downloadBtn.addEventListener("click", () => {
+    if (!output.value) return;
+    try {
+      const isEncode = opSelect.value === "encode";
+      // Whichever field holds Base64 text is the one we decode to bytes for download.
+      const base64Text = isEncode ? output.value : input.value;
+      const normalized = urlSafeCheckbox.checked ? fromUrlSafe(base64Text) : base64Text;
+      const bytes = base64ToBytes(normalized);
+      const blob = new Blob([bytes as BlobPart]);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "decoded.bin";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(link.href);
+    } catch {
+      setError(errorEl, "Could not decode this Base64 to a file — check the input.");
+    }
+  });
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    setError(errorEl, null);
+    fileInput.value = "";
+    input.focus();
+  });
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // readAsDataURL yields "data:<mime>;base64,<data>" — keep only the pure Base64 payload.
+      const commaIndex = result.indexOf(",");
+      const base64 = commaIndex >= 0 ? result.slice(commaIndex + 1) : result;
+      opSelect.value = "encode";
+      input.value = `[file: ${file.name}]`;
+      output.value = urlSafeCheckbox.checked ? toUrlSafe(base64) : base64;
+      setError(errorEl, null);
+    };
+    reader.onerror = () => setError(errorEl, "Could not read this file.");
+    reader.readAsDataURL(file);
+  });
+</script>
+
+<style>
+  .tool-field--checkbox {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .tool-field--checkbox label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-transform: none;
+    font-family: var(--font-sans, inherit);
+    font-size: var(--text-sm);
+    letter-spacing: normal;
+    color: var(--text);
+  }
+</style>

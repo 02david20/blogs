@@ -1,0 +1,281 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("unix-timestamp")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["cron-generator", "uuid-generator", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="ts-now">Current Unix time</label>
+          <output id="ts-now" class="tool-input tool-now">0</output>
+        </div>
+        <button type="button" id="ts-now-copy" class="tool-btn">Copy</button>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <h3 class="tool-panel__title">Timestamp → Date</h3>
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="ts-unit">Unit</label>
+          <select id="ts-unit" class="tool-select">
+            <option value="seconds">Seconds</option>
+            <option value="milliseconds">Milliseconds</option>
+          </select>
+        </div>
+      </div>
+      <div class="tool-field">
+        <label for="ts-input">Unix timestamp</label>
+        <input id="ts-input" class="tool-input" type="text" inputmode="numeric" placeholder="1700000000" />
+      </div>
+
+      <p id="ts-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="ts-output-utc">UTC</label>
+          <input id="ts-output-utc" class="tool-input" type="text" readonly />
+        </div>
+        <div class="tool-field">
+          <label for="ts-output-local">Local time</label>
+          <input id="ts-output-local" class="tool-input" type="text" readonly />
+        </div>
+      </div>
+
+      <div class="tool-toolbar">
+        <button type="button" id="ts-copy-utc" class="tool-btn">Copy UTC</button>
+        <button type="button" id="ts-copy-local" class="tool-btn">Copy local</button>
+        <button type="button" id="ts-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <h3 class="tool-panel__title">Date → Timestamp</h3>
+      <div class="tool-field">
+        <label for="date-input">Date and time</label>
+        <input id="date-input" class="tool-input" type="datetime-local" step="1" />
+      </div>
+
+      <p id="date-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="date-output-seconds">Unix timestamp (seconds)</label>
+          <input id="date-output-seconds" class="tool-input" type="text" readonly />
+        </div>
+        <div class="tool-field">
+          <label for="date-output-ms">Unix timestamp (milliseconds)</label>
+          <input id="date-output-ms" class="tool-input" type="text" readonly />
+        </div>
+      </div>
+
+      <div class="tool-toolbar">
+        <button type="button" id="date-copy-seconds" class="tool-btn">Copy seconds</button>
+        <button type="button" id="date-copy-ms" class="tool-btn">Copy milliseconds</button>
+        <button type="button" id="date-now" class="tool-btn">Use current time</button>
+        <button type="button" id="date-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>What is Unix time?</h2>
+  <p>
+    Unix time (also called epoch time or POSIX time) counts elapsed seconds since{" "}
+    <strong>1970-01-01T00:00:00Z</strong> — the Unix epoch — ignoring leap seconds. It's a single
+    integer that unambiguously identifies a moment, independent of calendar or timezone, which is
+    why it's the standard way to store and exchange timestamps between systems.
+  </p>
+
+  <h2>Seconds vs. milliseconds</h2>
+  <p>
+    Unix timestamps are <em>conventionally</em> expressed in whole seconds, but JavaScript's{" "}
+    <code>Date</code> object works in <strong>milliseconds</strong> since the epoch (<code
+      >new Date(msSinceEpoch)</code
+    >). Mixing the two up is the single most common bug when converting between systems: dividing
+    a seconds-based timestamp by 1000 again (or forgetting to multiply it by 1000 before handing it
+    to <code>Date</code>) silently produces a date near 1970, and multiplying an already-millisecond
+    value by 1000 again overflows into a date centuries in the future. Always check the unit at
+    both ends of the conversion — this tool makes it explicit with the seconds/milliseconds toggle.
+  </p>
+
+  <h2>UTC vs. local time</h2>
+  <p>
+    A Unix timestamp itself has no timezone — it's a fixed count of seconds from a fixed instant.
+    Only its <em>rendering</em> as a human-readable date has a timezone. <code
+      >1700000000</code
+    > is the same moment everywhere on Earth; it just prints as a different wall-clock time (and
+    sometimes a different calendar date) depending on which timezone you render it in. This tool
+    always shows both the UTC rendering and your browser's local-time rendering side by side so you
+    can see the difference directly.
+  </p>
+
+  <h2>Common timestamp mistakes</h2>
+  <ul>
+    <li>
+      <strong>Seconds/milliseconds confusion</strong> (see above) — the most frequent source of
+      "why is this date in 1970?" or "why is this date in the far future?" bugs.
+    </li>
+    <li>
+      <strong>Assuming a displayed local time is the stored value.</strong> If a UI shows{" "}
+      "3:00 PM" in the visitor's local timezone, the underlying stored timestamp is not "3:00 PM" —
+      it's a fixed instant that renders as 3:00 PM only in that one timezone. Storing the rendered
+      string instead of the timestamp loses this distinction permanently.
+    </li>
+    <li>
+      Forgetting that <code>Date.now()</code> and similar APIs return <em>milliseconds</em>, not
+      seconds, when an API elsewhere in the same codebase expects seconds.
+    </li>
+  </ul>
+</ToolLayout>
+
+<style>
+  .tool-panel__title {
+    margin-bottom: var(--space-4);
+  }
+
+  .tool-now {
+    font-weight: 600;
+    font-size: var(--text-lg);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, setError } from "../../../lib/tools-client";
+
+  const nowEl = document.getElementById("ts-now") as HTMLOutputElement;
+  const nowCopyBtn = document.getElementById("ts-now-copy") as HTMLButtonElement;
+
+  const unitSelect = document.getElementById("ts-unit") as HTMLSelectElement;
+  const tsInput = document.getElementById("ts-input") as HTMLInputElement;
+  const tsError = document.getElementById("ts-error") as HTMLParagraphElement;
+  const tsOutputUtc = document.getElementById("ts-output-utc") as HTMLInputElement;
+  const tsOutputLocal = document.getElementById("ts-output-local") as HTMLInputElement;
+  const tsCopyUtcBtn = document.getElementById("ts-copy-utc") as HTMLButtonElement;
+  const tsCopyLocalBtn = document.getElementById("ts-copy-local") as HTMLButtonElement;
+  const tsClearBtn = document.getElementById("ts-clear") as HTMLButtonElement;
+
+  const dateInput = document.getElementById("date-input") as HTMLInputElement;
+  const dateError = document.getElementById("date-error") as HTMLParagraphElement;
+  const dateOutputSeconds = document.getElementById("date-output-seconds") as HTMLInputElement;
+  const dateOutputMs = document.getElementById("date-output-ms") as HTMLInputElement;
+  const dateCopySecondsBtn = document.getElementById("date-copy-seconds") as HTMLButtonElement;
+  const dateCopyMsBtn = document.getElementById("date-copy-ms") as HTMLButtonElement;
+  const dateNowBtn = document.getElementById("date-now") as HTMLButtonElement;
+  const dateClearBtn = document.getElementById("date-clear") as HTMLButtonElement;
+
+  const localFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "long",
+  });
+
+  function updateNow() {
+    nowEl.textContent = String(Math.floor(Date.now() / 1000));
+  }
+  updateNow();
+  window.setInterval(updateNow, 1000);
+
+  nowCopyBtn.addEventListener("click", () => copyToClipboard(nowEl.textContent ?? "", nowCopyBtn));
+
+  function convertTimestampToDate() {
+    const raw = tsInput.value.trim();
+    if (raw === "") {
+      setError(tsError, null);
+      tsOutputUtc.value = "";
+      tsOutputLocal.value = "";
+      return;
+    }
+
+    if (!/^-?\d+$/.test(raw)) {
+      setError(tsError, "Enter a whole number of seconds or milliseconds since the epoch.");
+      tsOutputUtc.value = "";
+      tsOutputLocal.value = "";
+      return;
+    }
+
+    const value = Number(raw);
+    const ms = unitSelect.value === "seconds" ? value * 1000 : value;
+    const date = new Date(ms);
+
+    if (isNaN(date.getTime())) {
+      setError(tsError, "This timestamp doesn't correspond to a valid date.");
+      tsOutputUtc.value = "";
+      tsOutputLocal.value = "";
+      return;
+    }
+
+    setError(tsError, null);
+    tsOutputUtc.value = date.toISOString();
+    tsOutputLocal.value = localFormatter.format(date);
+  }
+
+  tsInput.addEventListener("input", convertTimestampToDate);
+  unitSelect.addEventListener("change", convertTimestampToDate);
+
+  tsCopyUtcBtn.addEventListener("click", () => copyToClipboard(tsOutputUtc.value, tsCopyUtcBtn));
+  tsCopyLocalBtn.addEventListener("click", () => copyToClipboard(tsOutputLocal.value, tsCopyLocalBtn));
+
+  tsClearBtn.addEventListener("click", () => {
+    tsInput.value = "";
+    tsOutputUtc.value = "";
+    tsOutputLocal.value = "";
+    setError(tsError, null);
+    tsInput.focus();
+  });
+
+  function convertDateToTimestamp() {
+    const raw = dateInput.value;
+    if (raw === "") {
+      setError(dateError, null);
+      dateOutputSeconds.value = "";
+      dateOutputMs.value = "";
+      return;
+    }
+
+    const date = new Date(raw);
+    if (isNaN(date.getTime())) {
+      setError(dateError, "Enter a valid date and time.");
+      dateOutputSeconds.value = "";
+      dateOutputMs.value = "";
+      return;
+    }
+
+    setError(dateError, null);
+    dateOutputMs.value = String(date.getTime());
+    dateOutputSeconds.value = String(Math.floor(date.getTime() / 1000));
+  }
+
+  dateInput.addEventListener("input", convertDateToTimestamp);
+  dateInput.addEventListener("change", convertDateToTimestamp);
+
+  dateCopySecondsBtn.addEventListener("click", () =>
+    copyToClipboard(dateOutputSeconds.value, dateCopySecondsBtn),
+  );
+  dateCopyMsBtn.addEventListener("click", () => copyToClipboard(dateOutputMs.value, dateCopyMsBtn));
+
+  dateNowBtn.addEventListener("click", () => {
+    const now = new Date();
+    // datetime-local expects "YYYY-MM-DDTHH:mm:ss" in local time, no timezone suffix.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    dateInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(
+      now.getHours(),
+    )}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    convertDateToTimestamp();
+  });
+
+  dateClearBtn.addEventListener("click", () => {
+    dateInput.value = "";
+    dateOutputSeconds.value = "";
+    dateOutputMs.value = "";
+    setError(dateError, null);
+    dateInput.focus();
+  });
+</script>

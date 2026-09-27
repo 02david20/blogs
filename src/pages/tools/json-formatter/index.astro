@@ -1,0 +1,237 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+import { url } from "../../../lib/url";
+
+const meta = toolBySlug("json-formatter")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["json-to-typescript", "base64", "regex-tester"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="json-indent">Indent</label>
+          <select id="json-indent" class="tool-select">
+            <option value="2">2 spaces</option>
+            <option value="4">4 spaces</option>
+          </select>
+        </div>
+        <div class="tool-field tool-field--checkbox">
+          <label for="json-sort-keys">
+            <input type="checkbox" id="json-sort-keys" />
+            Sort object keys
+          </label>
+        </div>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="json-input">Input</label>
+          <textarea
+            id="json-input"
+            class="tool-textarea"
+            placeholder={`{"paste": "some JSON here"}`}
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="json-output">Result</label>
+          <textarea id="json-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="json-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="json-format" class="tool-btn tool-btn--primary">Format</button>
+        <button type="button" id="json-minify" class="tool-btn">Minify</button>
+        <button type="button" id="json-copy" class="tool-btn">Copy result</button>
+        <button type="button" id="json-download" class="tool-btn">Download .json</button>
+        <button type="button" id="json-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>What is JSON formatting?</h2>
+  <p>
+    <strong>Pretty-printing</strong> re-indents a JSON document so nested objects and arrays are
+    readable, one value per line, with consistent spacing. <strong>Minifying</strong> does the
+    opposite — it strips all insignificant whitespace to produce the smallest possible payload,
+    which is what you'd actually send over the wire. <strong>Validating</strong> isn't a separate
+    step here — parsing the input with <code>JSON.parse</code> is itself the validation: if it
+    succeeds, the document is valid JSON; if it throws, the input is malformed and this tool shows
+    you why.
+  </p>
+
+  <h2>Common JSON errors</h2>
+  <p>
+    JSON looks like a JavaScript object literal but is stricter. A few things that are legal in
+    JavaScript will throw when parsed as JSON:
+  </p>
+  <p><strong>Trailing commas</strong> aren't allowed:</p>
+  <pre><code>{`// invalid
+{"a": 1, "b": 2,}
+
+// valid
+{"a": 1, "b": 2}`}</code></pre>
+  <p><strong>Keys and strings must use double quotes</strong> — single quotes aren't valid JSON:</p>
+  <pre><code>{`// invalid
+{'a': 'one'}
+
+// valid
+{"a": "one"}`}</code></pre>
+  <p><strong>Object keys must be quoted</strong> — bare identifiers aren't allowed:</p>
+  <pre><code>{`// invalid
+{a: 1}
+
+// valid
+{"a": 1}`}</code></pre>
+  <p>
+    <strong>Comments aren't allowed at all</strong> — JSON has no comment syntax, so <code
+      >// like this</code
+    > or <code>{`/* like this */`}</code> will always fail to parse.
+  </p>
+
+  <h2>Examples</h2>
+  <p>Pretty-printed (2 spaces):</p>
+  <pre><code>{`{
+  "id": 42,
+  "name": "widget",
+  "tags": ["a", "b"]
+}`}</code></pre>
+  <p>The same document minified:</p>
+  <pre><code>{`{"id":42,"name":"widget","tags":["a","b"]}`}</code></pre>
+
+  <p>
+    Working with the result? Convert it to interfaces with the{" "}
+    <a href={url("/tools/json-to-typescript")}>JSON → TypeScript converter</a>, or encode binary
+    payloads alongside it with the <a href={url("/tools/base64")}>Base64 encoder</a>.
+  </p>
+</ToolLayout>
+
+<style>
+  .tool-field--checkbox {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .tool-field--checkbox label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    text-transform: none;
+    font-family: var(--font-sans, inherit);
+    font-size: var(--text-sm);
+    letter-spacing: normal;
+    color: var(--text);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, download, setError } from "../../../lib/tools-client";
+
+  const input = document.getElementById("json-input") as HTMLTextAreaElement;
+  const output = document.getElementById("json-output") as HTMLTextAreaElement;
+  const indentSelect = document.getElementById("json-indent") as HTMLSelectElement;
+  const sortKeysCheckbox = document.getElementById("json-sort-keys") as HTMLInputElement;
+  const errorEl = document.getElementById("json-error") as HTMLParagraphElement;
+  const formatBtn = document.getElementById("json-format") as HTMLButtonElement;
+  const minifyBtn = document.getElementById("json-minify") as HTMLButtonElement;
+  const copyBtn = document.getElementById("json-copy") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("json-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("json-clear") as HTMLButtonElement;
+
+  /** Recursively sorts object keys alphabetically; arrays and scalars pass through unchanged. */
+  function sortKeys(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map(sortKeys);
+    }
+    if (value !== null && typeof value === "object") {
+      const sorted: Record<string, unknown> = {};
+      for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+        sorted[key] = sortKeys((value as Record<string, unknown>)[key]);
+      }
+      return sorted;
+    }
+    return value;
+  }
+
+  /** Converts a V8 "...at position N" SyntaxError message into a 1-based line/column, when possible. */
+  function describeError(message: string, source: string): string {
+    const match = message.match(/position (\d+)/);
+    if (!match) return message;
+
+    const position = Number(match[1]);
+    const before = source.slice(0, position);
+    const lines = before.split("\n");
+    const line = lines.length;
+    const column = lines[lines.length - 1].length + 1;
+    return `${message} (line ${line}, column ${column})`;
+  }
+
+  function parseOrReport(): unknown | undefined {
+    const value = input.value;
+    if (value.trim() === "") {
+      setError(errorEl, "Enter some JSON to format.");
+      output.value = "";
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(value);
+      setError(errorEl, null);
+      return parsed;
+    } catch (err) {
+      output.value = "";
+      setError(errorEl, describeError(err instanceof Error ? err.message : String(err), value));
+      return undefined;
+    }
+  }
+
+  function applySort(value: unknown): unknown {
+    return sortKeysCheckbox.checked ? sortKeys(value) : value;
+  }
+
+  function format() {
+    const parsed = parseOrReport();
+    if (parsed === undefined) return;
+    const indent = Number(indentSelect.value);
+    output.value = JSON.stringify(applySort(parsed), null, indent);
+  }
+
+  function minify() {
+    const parsed = parseOrReport();
+    if (parsed === undefined) return;
+    output.value = JSON.stringify(applySort(parsed));
+  }
+
+  let debounceId: number | undefined;
+  input.addEventListener("input", () => {
+    window.clearTimeout(debounceId);
+    debounceId = window.setTimeout(format, 200);
+  });
+
+  formatBtn.addEventListener("click", format);
+  minifyBtn.addEventListener("click", minify);
+  indentSelect.addEventListener("change", format);
+  sortKeysCheckbox.addEventListener("change", format);
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  downloadBtn.addEventListener("click", () => {
+    if (!output.value) return;
+    download("formatted.json", output.value, "application/json");
+  });
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    setError(errorEl, null);
+    input.focus();
+  });
+</script>

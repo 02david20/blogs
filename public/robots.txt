@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://engineering.sentinelnodes.cc/sitemap-index.xml

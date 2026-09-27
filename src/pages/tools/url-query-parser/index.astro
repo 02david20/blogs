@@ -1,0 +1,300 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("url-query-parser")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["url-encoder", "json-formatter", "regex-tester"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-field">
+        <label for="qp-input">URL or query string</label>
+        <input
+          id="qp-input"
+          class="tool-input"
+          type="text"
+          placeholder="https://example.com/search?tag=a&tag=b&sort=recent"
+          spellcheck="false"
+        />
+      </div>
+
+      <div id="qp-result" class="qp-result" aria-live="polite">
+        <p class="qp-empty">Paste a URL or query string above to see its parameters.</p>
+      </div>
+
+      <div class="tool-toolbar">
+        <button type="button" id="qp-copy" class="tool-btn tool-btn--primary">Copy parsed pairs</button>
+        <button type="button" id="qp-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <div class="tool-field">
+        <span class="tool-field__label">Build a query string</span>
+      </div>
+
+      <div id="qp-rows" class="qp-rows"></div>
+
+      <div class="tool-toolbar">
+        <button type="button" id="qp-add-row" class="tool-btn">Add row</button>
+      </div>
+
+      <div class="tool-field qp-build-output-field">
+        <label for="qp-build-output">Result</label>
+        <input id="qp-build-output" class="tool-input" type="text" readonly />
+      </div>
+
+      <div class="tool-toolbar">
+        <button type="button" id="qp-generate" class="tool-btn tool-btn--primary">Generate query string</button>
+        <button type="button" id="qp-copy-build" class="tool-btn">Copy result</button>
+        <button type="button" id="qp-clear-build" class="tool-btn">Clear rows</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>Query strings, briefly</h2>
+  <p>
+    The query string is the part of a URL after the <code>?</code>, made up of{" "}
+    <code>key=value</code> pairs joined with <code>&amp;</code> — for example{" "}
+    <code>?sort=recent&amp;page=2</code>. Keys and values are percent-encoded, so spaces,{" "}
+    <code>&amp;</code>, and other reserved characters appear as <code>%20</code>,{" "}
+    <code>%26</code>, and so on when they're part of a value rather than a separator.
+  </p>
+  <p>
+    Repeated keys are legal and meaningful: <code>?tag=a&amp;tag=b</code> is commonly read by
+    servers and frameworks as a multi-value filter — "match tag <code>a</code> OR tag{" "}
+    <code>b</code>" — rather than the second occurrence silently overwriting the first. This tool
+    preserves and displays every occurrence of a repeated key instead of collapsing it down to the
+    last value.
+  </p>
+
+  <h2>Parsing vs. building</h2>
+  <p>
+    <strong>Parse mode</strong> is for inspecting a URL or query string you already have — one a
+    teammate sent you, one from a browser address bar, or one from a log line — and seeing its
+    parameters broken out clearly. <strong>Build mode</strong> is the reverse: you know the
+    key/value pairs you need (maybe for an API call or a shareable link) and want a correctly
+    percent-encoded query string assembled for you, including handling any characters that need
+    escaping.
+  </p>
+
+  <h2>Example</h2>
+  <p>Given this URL:</p>
+  <pre><code>{`https://shop.example.com/search?tag=sale&tag=clearance&q=winter+coats`}</code></pre>
+  <p>the parsed table shows:</p>
+  <pre><code>{`tag   → sale, clearance
+q     → winter coats`}</code></pre>
+  <p>
+    Note the repeated <code>tag</code> key keeps both of its values grouped together instead of
+    only showing the last one, and <code>q</code>'s <code>+</code> (a common alternate encoding for
+    a space in query strings) is decoded back to a literal space.
+  </p>
+</ToolLayout>
+
+<style>
+  .qp-result {
+    margin-top: var(--space-4);
+  }
+
+  .qp-empty {
+    color: var(--text-faint);
+    font-size: var(--text-sm);
+  }
+
+  .qp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .qp-table th,
+  .qp-table td {
+    text-align: left;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .qp-table th {
+    color: var(--text-faint);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    font-weight: 500;
+  }
+
+  .qp-note {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--text-faint);
+    font-size: var(--text-xs);
+    font-family: var(--font-sans);
+  }
+
+  .qp-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .qp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: var(--space-2);
+    align-items: center;
+  }
+
+  @media (max-width: 30rem) {
+    .qp-row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .qp-build-output-field {
+    margin-top: var(--space-4);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, escapeHtml } from "../../../lib/tools-client";
+
+  const input = document.getElementById("qp-input") as HTMLInputElement;
+  const result = document.getElementById("qp-result") as HTMLDivElement;
+  const copyBtn = document.getElementById("qp-copy") as HTMLButtonElement;
+  const clearBtn = document.getElementById("qp-clear") as HTMLButtonElement;
+
+  const rowsContainer = document.getElementById("qp-rows") as HTMLDivElement;
+  const addRowBtn = document.getElementById("qp-add-row") as HTMLButtonElement;
+  const generateBtn = document.getElementById("qp-generate") as HTMLButtonElement;
+  const buildOutput = document.getElementById("qp-build-output") as HTMLInputElement;
+  const copyBuildBtn = document.getElementById("qp-copy-build") as HTMLButtonElement;
+  const clearBuildBtn = document.getElementById("qp-clear-build") as HTMLButtonElement;
+
+  let lastPairs: Array<[string, string]> = [];
+
+  function extractQueryString(raw: string): string {
+    let candidate = raw;
+    try {
+      const asUrl = new URL(raw);
+      candidate = asUrl.search.replace(/^\?/, "");
+    } catch {
+      const qIndex = raw.indexOf("?");
+      candidate = qIndex >= 0 ? raw.slice(qIndex + 1) : raw;
+    }
+    return candidate;
+  }
+
+  function renderParsed() {
+    const raw = input.value.trim();
+    if (raw === "") {
+      result.innerHTML = '<p class="qp-empty">Paste a URL or query string above to see its parameters.</p>';
+      lastPairs = [];
+      return;
+    }
+
+    const queryString = extractQueryString(raw);
+    const params = new URLSearchParams(queryString);
+
+    const grouped = new Map<string, string[]>();
+    for (const [key, value] of params) {
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(value);
+    }
+
+    if (grouped.size === 0) {
+      result.innerHTML = '<p class="qp-empty">No parameters found.</p>';
+      lastPairs = [];
+      return;
+    }
+
+    lastPairs = [];
+    const rows = [...grouped.entries()]
+      .map(([key, values]) => {
+        for (const value of values) lastPairs.push([key, value]);
+        const repeatedNote =
+          values.length > 1 ? `<span class="qp-note">appears ${values.length} times</span>` : "";
+        return `<tr><td>${escapeHtml(key)}</td><td>${values
+          .map((v) => escapeHtml(v))
+          .join(", ")}${repeatedNote}</td></tr>`;
+      })
+      .join("");
+
+    result.innerHTML = `<table class="qp-table"><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  input.addEventListener("input", renderParsed);
+
+  copyBtn.addEventListener("click", () => {
+    const text = lastPairs.map(([k, v]) => `${k}: ${v}`).join("\n");
+    copyToClipboard(text, copyBtn);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    renderParsed();
+    input.focus();
+  });
+
+  // --- Build mode -----------------------------------------------------------
+
+  let rowCount = 0;
+
+  function addRow(key = "", value = "") {
+    rowCount++;
+    const id = rowCount;
+    const row = document.createElement("div");
+    row.className = "qp-row";
+    row.dataset.rowId = String(id);
+    row.innerHTML = `
+      <div class="tool-field">
+        <label for="qp-key-${id}" class="tool-field__label">Key</label>
+        <input id="qp-key-${id}" class="tool-input qp-key" type="text" value="${escapeHtml(key)}" placeholder="key" />
+      </div>
+      <div class="tool-field">
+        <label for="qp-value-${id}" class="tool-field__label">Value</label>
+        <input id="qp-value-${id}" class="tool-input qp-value" type="text" value="${escapeHtml(value)}" placeholder="value" />
+      </div>
+      <button type="button" class="tool-btn qp-remove-row" aria-label="Remove row">✕</button>
+    `;
+    rowsContainer.appendChild(row);
+    row.querySelector(".qp-remove-row")!.addEventListener("click", () => row.remove());
+  }
+
+  addRowBtn.addEventListener("click", () => addRow());
+
+  generateBtn.addEventListener("click", () => {
+    const params = new URLSearchParams();
+    rowsContainer.querySelectorAll<HTMLDivElement>(".qp-row").forEach((row) => {
+      const key = (row.querySelector(".qp-key") as HTMLInputElement).value;
+      const value = (row.querySelector(".qp-value") as HTMLInputElement).value;
+      if (key !== "") {
+        params.append(key, value);
+      }
+    });
+    const query = params.toString();
+    buildOutput.value = query === "" ? "" : `?${query}`;
+  });
+
+  copyBuildBtn.addEventListener("click", () => copyToClipboard(buildOutput.value, copyBuildBtn));
+
+  clearBuildBtn.addEventListener("click", () => {
+    rowsContainer.innerHTML = "";
+    buildOutput.value = "";
+    addRow();
+    addRow();
+    addRow();
+  });
+
+  // Seed initial state.
+  addRow();
+  addRow();
+  addRow();
+  renderParsed();
+</script>

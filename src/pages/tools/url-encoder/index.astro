@@ -1,0 +1,164 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("url-encoder")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["base64", "json-formatter", "jwt-decoder"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="url-op">Operation</label>
+          <select id="url-op" class="tool-select">
+            <option value="encode">Encode</option>
+            <option value="decode">Decode</option>
+          </select>
+        </div>
+        <div class="tool-field">
+          <label for="url-scope">Scope</label>
+          <select id="url-scope" class="tool-select">
+            <option value="component">Component (encodeURIComponent)</option>
+            <option value="uri">Full URI (encodeURI)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="url-input">Input</label>
+          <textarea
+            id="url-input"
+            class="tool-textarea"
+            placeholder="Paste text or a URL…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="url-output">Result</label>
+          <textarea id="url-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="url-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="url-swap" class="tool-btn">Swap</button>
+        <button type="button" id="url-copy" class="tool-btn tool-btn--primary">Copy result</button>
+        <button type="button" id="url-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>What is URL encoding?</h2>
+  <p>
+    URL encoding (also called percent-encoding) represents characters that aren't safe to use
+    literally in a URL — spaces, <code>&</code>, <code>?</code>, non-ASCII characters like emoji or
+    accented letters — as a <code>%</code> followed by two hexadecimal digits. A space becomes{" "}
+    <code>%20</code>, <code>é</code> becomes <code>%C3%A9</code> (its UTF-8 bytes), and so on.
+    Decoding reverses the process, turning percent-escapes back into the original characters.
+  </p>
+
+  <h2>Encoding vs. decoding</h2>
+  <p>
+    <strong>Encoding</strong> takes a raw string and makes it safe to embed in a URL. <strong
+      >Decoding</strong
+    > takes a percent-encoded string — usually one you received from a query string, a webhook
+    payload, or a log line — and recovers the original text. This tool does both, and preserves
+    Unicode correctly in either direction since it works on UTF-8 bytes rather than assuming ASCII.
+  </p>
+
+  <h2>Component vs. full URI encoding</h2>
+  <p>
+    JavaScript (and this tool) draws a distinction that trips people up:
+  </p>
+  <ul>
+    <li>
+      <code>encodeURIComponent</code> escapes everything that isn't valid inside a single URL{" "}
+      <em>segment</em> — including <code>& / ? : # = +</code>. Use this for a value you're about to
+      insert into a query string or path segment, e.g. building{" "}
+      <code>?redirect={"{encoded}"}</code>.
+    </li>
+    <li>
+      <code>encodeURI</code> assumes you're encoding an entire URL that's already structurally
+      correct, so it leaves <code>: / ? # & = +</code> alone and only escapes characters that are
+      never valid anywhere in a URL. Use this when you have a whole URL with, say, unencoded spaces
+      or non-ASCII characters in the path.
+    </li>
+  </ul>
+  <p>
+    Decoding a string that used the wrong scope, or that isn't validly percent-encoded at all (a
+    stray <code>%</code> not followed by two hex digits), throws — this tool catches that and shows
+    a clear error instead of a blank result.
+  </p>
+
+  <h2>Common examples</h2>
+  <pre><code>{`hello world        → hello%20world
+a=1&b=2            → a%3D1%26b%3D2   (component)
+https://x.com/a b  → https://x.com/a%20b   (full URI)
+café               → caf%C3%A9`}</code></pre>
+</ToolLayout>
+
+<script>
+  import { copyToClipboard, setError } from "../../../lib/tools-client";
+
+  const input = document.getElementById("url-input") as HTMLTextAreaElement;
+  const output = document.getElementById("url-output") as HTMLTextAreaElement;
+  const opSelect = document.getElementById("url-op") as HTMLSelectElement;
+  const scopeSelect = document.getElementById("url-scope") as HTMLSelectElement;
+  const errorEl = document.getElementById("url-error") as HTMLParagraphElement;
+  const swapBtn = document.getElementById("url-swap") as HTMLButtonElement;
+  const copyBtn = document.getElementById("url-copy") as HTMLButtonElement;
+  const clearBtn = document.getElementById("url-clear") as HTMLButtonElement;
+
+  function process() {
+    const value = input.value;
+    if (value === "") {
+      output.value = "";
+      setError(errorEl, null);
+      return;
+    }
+
+    const isEncode = opSelect.value === "encode";
+    const isComponent = scopeSelect.value === "component";
+
+    try {
+      if (isEncode) {
+        output.value = isComponent ? encodeURIComponent(value) : encodeURI(value);
+      } else {
+        output.value = isComponent ? decodeURIComponent(value) : decodeURI(value);
+      }
+      setError(errorEl, null);
+    } catch {
+      output.value = "";
+      setError(errorEl, "Invalid encoded input — check for a stray “%” not followed by two hex digits.");
+    }
+  }
+
+  input.addEventListener("input", process);
+  opSelect.addEventListener("change", process);
+  scopeSelect.addEventListener("change", process);
+
+  swapBtn.addEventListener("click", () => {
+    const previousInput = input.value;
+    input.value = output.value;
+    output.value = previousInput;
+    opSelect.value = opSelect.value === "encode" ? "decode" : "encode";
+    process();
+  });
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    setError(errorEl, null);
+    input.focus();
+  });
+</script>

@@ -1,0 +1,64 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { url } from "../../lib/url";
+import { TOOLS } from "../../lib/tools";
+import "../../styles/tools.css";
+---
+
+<BaseLayout
+  title="Developer Tools"
+  description="Free, fast, browser-based developer utilities — URL and Base64 encoding, JSON formatting, JWT decoding, hashing, regex testing and more. Nothing you paste is ever uploaded."
+>
+  <div class="wrap wrap--wide tools-index">
+    <header class="tools-index__header">
+      <p class="eyebrow">Developer Tools</p>
+      <h1 class="tools-index__title">A small toolbox for everyday dev tasks</h1>
+      <p class="tools-index__lede">
+        Ten focused utilities that run entirely in your browser. Paste your data, get your
+        result, copy it, and go — nothing you enter is ever sent anywhere.
+      </p>
+    </header>
+
+    <div class="tool-card-grid">
+      {
+        TOOLS.map((tool) => (
+          <a class="tool-card" href={url(`/tools/${tool.slug}`)}>
+            <span class="tool-card__title">{tool.title}</span>
+            <span class="tool-card__tagline">{tool.tagline}</span>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .tools-index {
+    padding-block: var(--space-10) var(--space-8);
+  }
+
+  .tools-index__header {
+    max-width: var(--measure);
+    margin-bottom: var(--space-8);
+  }
+
+  .tools-index__title {
+    margin-block: var(--space-3) var(--space-4);
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .tools-index__lede {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text-muted);
+    max-width: 58ch;
+  }
+
+  @media (min-width: 48rem) {
+    .tools-index {
+      padding-block: var(--space-14) var(--space-10);
+    }
+  }
+</style>

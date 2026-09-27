@@ -1,0 +1,197 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("remove-duplicate-lines")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["text-diff", "regex-tester", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <label class="rdl-checkbox">
+          <input type="checkbox" id="rdl-case-sensitive" checked />
+          Case-sensitive
+        </label>
+        <label class="rdl-checkbox">
+          <input type="checkbox" id="rdl-trim" />
+          Trim whitespace
+        </label>
+        <label class="rdl-checkbox">
+          <input type="checkbox" id="rdl-sort" />
+          Sort output
+        </label>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="rdl-input">Input</label>
+          <textarea
+            id="rdl-input"
+            class="tool-textarea"
+            placeholder="Paste lines of text…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="rdl-output">Result</label>
+          <textarea id="rdl-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="rdl-stats" class="rdl-stats"></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="rdl-copy" class="tool-btn tool-btn--primary">Copy result</button>
+        <button type="button" id="rdl-download" class="tool-btn">Download .txt</button>
+        <button type="button" id="rdl-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>How duplicates are detected</h2>
+  <p>
+    Lines are compared in order, and only the <strong>first</strong> occurrence of each distinct
+    line is kept. What counts as "the same line" depends on the two options above:
+  </p>
+  <ul>
+    <li>
+      With <strong>case-sensitive</strong> on (the default) and <strong>trim whitespace</strong>{" "}
+      off, <code>"Foo"</code> and <code>"foo"</code> are different lines, and{" "}
+      <code>"foo"</code> and <code>"foo "</code> (trailing space) are also different lines — the
+      comparison is exact.
+    </li>
+    <li>
+      Turn <strong>case-sensitive off</strong> and lines are compared with their case folded, so{" "}
+      <code>"Foo"</code> and <code>"foo"</code> become duplicates of each other.
+    </li>
+    <li>
+      Turn <strong>trim whitespace on</strong> and each line has leading/trailing whitespace
+      stripped before comparing (and in the output), so <code>"foo"</code> and <code>"foo "</code>{" "}
+      become duplicates.
+    </li>
+    <li>
+      <code>"Foo"</code> and <code>"foo "</code> are only treated as duplicates when{" "}
+      <strong>both</strong> case-sensitivity is off <strong>and</strong> trimming is on — either
+      option alone leaves a difference the other would have erased.
+    </li>
+  </ul>
+
+  <h2>When order matters</h2>
+  <p>
+    By default the output preserves the <strong>first-occurrence order</strong> of the input — the
+    more generally useful choice when you're deduping something like a chronological log file or an
+    ordered list of steps, where losing the original sequence would lose information. Check{" "}
+    <strong>"Sort output"</strong> when you'd rather have a clean, alphabetically ordered list
+    instead — useful for things like a deduped list of tags or names where order didn't carry
+    meaning in the first place.
+  </p>
+
+  <h2>Example</h2>
+  <p>Given this input:</p>
+  <pre><code>{`apple
+banana
+Apple
+apple
+cherry
+banana `}</code></pre>
+  <p>with default settings (case-sensitive on, trim off, sort off), the result is:</p>
+  <pre><code>{`apple
+banana
+Apple
+cherry
+banana `}</code></pre>
+  <p>
+    Only the exact second <code>apple</code> is removed as a duplicate — <code>Apple</code> (capital
+    A) and the trailing-space <code>banana </code> are each still considered distinct lines. Turn on
+    both <strong>case-sensitive off</strong> and <strong>trim whitespace</strong>, and the result
+    becomes just <code>apple</code>, <code>banana</code>, <code>cherry</code> — three lines, three
+    duplicates removed.
+  </p>
+</ToolLayout>
+
+<style>
+  .rdl-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .rdl-stats {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, download } from "../../../lib/tools-client";
+
+  const input = document.getElementById("rdl-input") as HTMLTextAreaElement;
+  const output = document.getElementById("rdl-output") as HTMLTextAreaElement;
+  const caseSensitive = document.getElementById("rdl-case-sensitive") as HTMLInputElement;
+  const trim = document.getElementById("rdl-trim") as HTMLInputElement;
+  const sortOutput = document.getElementById("rdl-sort") as HTMLInputElement;
+  const stats = document.getElementById("rdl-stats") as HTMLParagraphElement;
+  const copyBtn = document.getElementById("rdl-copy") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("rdl-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("rdl-clear") as HTMLButtonElement;
+
+  function process() {
+    const value = input.value;
+    if (value === "") {
+      output.value = "";
+      stats.textContent = "";
+      return;
+    }
+
+    const lines = value.split("\n");
+    const seen = new Set<string>();
+    const kept: string[] = [];
+
+    for (const line of lines) {
+      let outLine = line;
+      if (trim.checked) outLine = outLine.trim();
+
+      let key = outLine;
+      if (!caseSensitive.checked) key = key.toLowerCase();
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      kept.push(outLine);
+    }
+
+    const finalLines = sortOutput.checked ? [...kept].sort((a, b) => a.localeCompare(b)) : kept;
+
+    output.value = finalLines.join("\n");
+    const removed = lines.length - finalLines.length;
+    stats.textContent = `${lines.length} line${lines.length === 1 ? "" : "s"} → ${
+      finalLines.length
+    } line${finalLines.length === 1 ? "" : "s"} (${removed} duplicate${removed === 1 ? "" : "s"} removed).`;
+  }
+
+  input.addEventListener("input", process);
+  caseSensitive.addEventListener("change", process);
+  trim.addEventListener("change", process);
+  sortOutput.addEventListener("change", process);
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  downloadBtn.addEventListener("click", () => download("deduplicated-lines.txt", output.value));
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    stats.textContent = "";
+    input.focus();
+  });
+</script>

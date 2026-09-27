@@ -1,0 +1,325 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("text-diff")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["json-formatter", "regex-tester", "remove-duplicate-lines"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <label class="diff-checkbox">
+          <input type="checkbox" id="diff-ignore-whitespace" />
+          Ignore whitespace
+        </label>
+        <label class="diff-checkbox">
+          <input type="checkbox" id="diff-ignore-case" />
+          Ignore case
+        </label>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="diff-original">Original</label>
+          <textarea
+            id="diff-original"
+            class="tool-textarea"
+            placeholder="Paste the original text…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="diff-changed">Changed</label>
+          <textarea
+            id="diff-changed"
+            class="tool-textarea"
+            placeholder="Paste the changed text…"
+            spellcheck="false"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <div class="tool-field">
+        <span class="tool-field__label">Result</span>
+        <div id="diff-output" class="tool-textarea diff-output" aria-live="polite">
+          <p class="diff-empty">Paste text on both sides to see a comparison.</p>
+        </div>
+      </div>
+
+      <p id="diff-stats" class="diff-stats"></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="diff-copy" class="tool-btn tool-btn--primary">Copy diff</button>
+        <button type="button" id="diff-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>How this comparison works</h2>
+  <p>
+    This tool compares the two texts <strong>line by line</strong>, splitting each on newlines and
+    finding the longest common subsequence (LCS) of lines shared between them — the same family of
+    algorithm used by <code>diff</code> and Git. Lines present in both, in the same relative order,
+    are marked unchanged. Lines only in the "Original" box are marked removed; lines only in the
+    "Changed" box are marked added.
+  </p>
+  <p>
+    Because the comparison operates on whole lines, a line whose content changed even slightly — a
+    single word edited, a character fixed — shows up as one <em>removed</em> line followed by one
+    <em>added</em> line, not as an in-line, word-level highlight of just what changed within the
+    line. That's a deliberate scope limitation of a line diff, not a bug: if you need to see exactly
+    which words differ inside a single line, you'll still need to eyeball the removed/added pair.
+  </p>
+
+  <h2>Ignoring whitespace and case</h2>
+  <p>
+    <strong>Ignore whitespace</strong> trims each line and collapses runs of internal whitespace
+    before comparing — useful when comparing code that's been reformatted or re-indented but hasn't
+    otherwise changed, or text that's been re-wrapped. <strong>Ignore case</strong> lowercases both
+    sides before comparing — useful when checking user-entered text that should be treated the same
+    regardless of capitalization, like comparing two versions of a form submission. Both options only
+    affect how lines are <em>matched</em>; the output still displays each line exactly as it was
+    typed, so you never lose the original casing or spacing.
+  </p>
+
+  <h2>Example</h2>
+  <p>Given this "Original":</p>
+  <pre><code>{`Hello world
+The quick brown fox
+Line to remove
+Same on both sides`}</code></pre>
+  <p>and this "Changed":</p>
+  <pre><code>{`Hello world
+The quick brown FOX
+Same on both sides
+A new line at the end`}</code></pre>
+  <p>with default options (case-sensitive, whitespace-sensitive), the tool shows:</p>
+  <pre><code>{`  Hello world
+- The quick brown fox
+- Line to remove
++ The quick brown FOX
+  Same on both sides
++ A new line at the end`}</code></pre>
+  <p>
+    "The quick brown fox" differs only by case, so with default settings it contributes a removed
+    line and an added line rather than being recognized as unchanged (the LCS matcher only ever
+    marks two lines equal when their keys match exactly, so it groups the surrounding removed lines
+    together before the corresponding added line — that grouping can shift slightly depending on
+    what else is being matched nearby, but every original and changed line is still accounted for
+    exactly once). Turn on "Ignore case" and the fox/FOX pair collapses into a single unchanged
+    line instead, since the matcher then treats <code>fox</code> and <code>FOX</code> as equal.
+  </p>
+</ToolLayout>
+
+<style>
+  .diff-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .diff-output {
+    min-height: 10rem;
+    max-height: 32rem;
+    overflow: auto;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .diff-empty {
+    padding: var(--space-3);
+    color: var(--text-faint);
+  }
+
+  :global(.diff-line) {
+    display: flex;
+    gap: var(--space-2);
+    padding: 0.15rem var(--space-3);
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-left: 3px solid transparent;
+  }
+
+  :global(.diff-line__marker) {
+    flex-shrink: 0;
+    user-select: none;
+    color: var(--text-faint);
+  }
+
+  :global(.diff-line--added) {
+    background-color: var(--selection);
+    border-left-color: var(--accent);
+  }
+
+  :global(.diff-line--added .diff-line__marker) {
+    color: var(--accent);
+  }
+
+  :global(.diff-line--removed) {
+    background-color: var(--bg-subtle);
+    border-left-color: var(--border-strong);
+  }
+
+  :global(.diff-line--removed .diff-line__content) {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-faint);
+  }
+
+  .diff-stats {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, escapeHtml } from "../../../lib/tools-client";
+
+  interface DiffEntry {
+    type: "equal" | "removed" | "added";
+    line: string;
+  }
+
+  const originalInput = document.getElementById("diff-original") as HTMLTextAreaElement;
+  const changedInput = document.getElementById("diff-changed") as HTMLTextAreaElement;
+  const ignoreWhitespace = document.getElementById("diff-ignore-whitespace") as HTMLInputElement;
+  const ignoreCase = document.getElementById("diff-ignore-case") as HTMLInputElement;
+  const output = document.getElementById("diff-output") as HTMLDivElement;
+  const stats = document.getElementById("diff-stats") as HTMLParagraphElement;
+  const copyBtn = document.getElementById("diff-copy") as HTMLButtonElement;
+  const clearBtn = document.getElementById("diff-clear") as HTMLButtonElement;
+
+  let lastDiff: DiffEntry[] = [];
+
+  function keyFor(line: string): string {
+    let key = line;
+    if (ignoreWhitespace.checked) {
+      key = key.trim().replace(/\s+/g, " ");
+    }
+    if (ignoreCase.checked) {
+      key = key.toLowerCase();
+    }
+    return key;
+  }
+
+  /**
+   * Classic LCS-based line diff. dp[i][j] holds the length of the longest
+   * common subsequence of originalLines[i..] and changedLines[j..], computed
+   * bottom-up from the end of both arrays. Backtracking forward from (0, 0)
+   * then yields the ordered list of equal/removed/added lines.
+   */
+  function diffLines(originalLines: string[], changedLines: string[]): DiffEntry[] {
+    const n = originalLines.length;
+    const m = changedLines.length;
+    const oKeys = originalLines.map(keyFor);
+    const cKeys = changedLines.map(keyFor);
+
+    const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] =
+          oKeys[i] === cKeys[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+
+    const result: DiffEntry[] = [];
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (oKeys[i] === cKeys[j]) {
+        result.push({ type: "equal", line: originalLines[i] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        result.push({ type: "removed", line: originalLines[i] });
+        i++;
+      } else {
+        result.push({ type: "added", line: changedLines[j] });
+        j++;
+      }
+    }
+    while (i < n) {
+      result.push({ type: "removed", line: originalLines[i] });
+      i++;
+    }
+    while (j < m) {
+      result.push({ type: "added", line: changedLines[j] });
+      j++;
+    }
+    return result;
+  }
+
+  function markerFor(type: DiffEntry["type"]): string {
+    if (type === "added") return "+";
+    if (type === "removed") return "-";
+    return " ";
+  }
+
+  function render() {
+    const originalText = originalInput.value;
+    const changedText = changedInput.value;
+
+    if (originalText === "" && changedText === "") {
+      lastDiff = [];
+      output.innerHTML = '<p class="diff-empty">Paste text on both sides to see a comparison.</p>';
+      stats.textContent = "";
+      return;
+    }
+
+    const originalLines = originalText.split("\n");
+    const changedLines = changedText.split("\n");
+    const entries = diffLines(originalLines, changedLines);
+    lastDiff = entries;
+
+    let added = 0;
+    let removed = 0;
+    let unchanged = 0;
+    const html = entries
+      .map((entry) => {
+        if (entry.type === "added") added++;
+        else if (entry.type === "removed") removed++;
+        else unchanged++;
+        return `<div class="diff-line diff-line--${entry.type}"><span class="diff-line__marker">${markerFor(
+          entry.type
+        )}</span><span class="diff-line__content">${escapeHtml(entry.line) || "&nbsp;"}</span></div>`;
+      })
+      .join("");
+
+    output.innerHTML = html;
+    stats.textContent = `${added} line${added === 1 ? "" : "s"} added, ${removed} line${
+      removed === 1 ? "" : "s"
+    } removed, ${unchanged} line${unchanged === 1 ? "" : "s"} unchanged.`;
+  }
+
+  originalInput.addEventListener("input", render);
+  changedInput.addEventListener("input", render);
+  ignoreWhitespace.addEventListener("change", render);
+  ignoreCase.addEventListener("change", render);
+
+  copyBtn.addEventListener("click", () => {
+    const text = lastDiff.map((entry) => `${markerFor(entry.type)} ${entry.line}`).join("\n");
+    copyToClipboard(text, copyBtn);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    originalInput.value = "";
+    changedInput.value = "";
+    render();
+    originalInput.focus();
+  });
+
+  render();
+</script>

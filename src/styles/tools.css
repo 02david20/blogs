@@ -1,0 +1,283 @@
+/* ==========================================================================
+   Shared /tools/ UI — built entirely from the site's existing design tokens
+   (tokens.css). No new colors are introduced here.
+   ========================================================================== */
+
+.tool-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-inset);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.tool-panel + .tool-panel {
+  margin-top: var(--space-4);
+}
+
+.tool-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .tool-grid--split {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.tool-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tool-field label,
+.tool-field__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tool-textarea,
+.tool-input,
+.tool-select {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg);
+  color: var(--text);
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.tool-textarea {
+  resize: vertical;
+  min-height: 10rem;
+}
+
+.tool-textarea:focus-visible,
+.tool-input:focus-visible,
+.tool-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.tool-textarea[readonly] {
+  color: var(--text-muted);
+}
+
+.tool-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.tool-toolbar--top {
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+}
+
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg);
+  color: var(--text);
+  padding: 0.5rem 0.85rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  /* 44px-ish touch target without inflating desktop density. */
+  min-height: 2.25rem;
+}
+
+.tool-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tool-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.tool-btn--primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.tool-btn--primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--accent-contrast);
+}
+
+.tool-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-subtle);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.tool-error::before {
+  content: "⚠";
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.tool-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.tool-notice::before {
+  content: "✓";
+  color: var(--accent);
+}
+
+/* --- Prose / explanatory content ----------------------------------------- */
+
+.tool-doc {
+  margin-top: var(--space-12);
+  max-width: var(--measure);
+}
+
+.tool-doc h2 {
+  margin-top: var(--space-10);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xl);
+  font-weight: 620;
+}
+
+.tool-doc h2:first-child {
+  margin-top: 0;
+}
+
+.tool-doc h3 {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 620;
+}
+
+.tool-doc p,
+.tool-doc li {
+  color: var(--text-muted);
+  line-height: var(--leading-prose);
+}
+
+.tool-doc p + p,
+.tool-doc ul + p,
+.tool-doc p + ul {
+  margin-top: var(--space-3);
+}
+
+.tool-doc ul,
+.tool-doc ol {
+  padding-left: 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tool-doc code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background-color: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+}
+
+.tool-doc pre {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--code-bg);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.tool-doc pre code {
+  background: none;
+  padding: 0;
+}
+
+/* --- Cards: /tools/ index + "Related tools" ------------------------------ */
+
+.tool-card-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-decoration: none;
+  color: var(--text);
+  background-color: var(--bg);
+}
+
+.tool-card:hover {
+  border-color: var(--accent);
+}
+
+.tool-card:hover .tool-card__title {
+  color: var(--accent);
+}
+
+.tool-card__title {
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.tool-card__tagline {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tool-btn,
+  .tool-card,
+  .tool-card__title {
+    transition:
+      color var(--duration-fast) var(--ease),
+      border-color var(--duration-fast) var(--ease),
+      background-color var(--duration-fast) var(--ease);
+  }
+}
+
+/* --- Match highlighting (regex tester) ------------------------------------ */
+
+.tool-match {
+  background-color: var(--selection);
+  border-radius: var(--radius-sm);
+}

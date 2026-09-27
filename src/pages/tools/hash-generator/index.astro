@@ -1,0 +1,216 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("hash-generator")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["base64", "jwt-decoder", "uuid-generator"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="hash-algo">Algorithm</label>
+          <select id="hash-algo" class="tool-select">
+            <option value="SHA-256">SHA-256</option>
+            <option value="SHA-384">SHA-384</option>
+            <option value="SHA-512">SHA-512</option>
+            <option value="SHA-1">SHA-1 (legacy — insecure for security use)</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="hash-sha1-note" class="tool-error" role="alert" hidden>
+        SHA-1 is broken for security purposes (practical collision attacks exist). Only use it for
+        compatibility with legacy systems that require it — not for anything security-sensitive.
+      </p>
+
+      <div class="tool-field">
+        <label for="hash-input">Text</label>
+        <textarea
+          id="hash-input"
+          class="tool-textarea"
+          placeholder="Type or paste text to hash…"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div class="tool-field">
+        <label for="hash-output">Hash (hex)</label>
+        <textarea id="hash-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+      </div>
+
+      <p id="hash-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="hash-copy" class="tool-btn tool-btn--primary">Copy hash</button>
+        <button type="button" id="hash-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="tool-panel">
+      <div class="tool-field">
+        <label for="hash-file">Hash a file instead</label>
+        <input id="hash-file" class="tool-input" type="file" />
+      </div>
+
+      <p id="hash-file-info" class="tool-field__label" hidden></p>
+
+      <div class="tool-field">
+        <label for="hash-file-output">File hash (hex)</label>
+        <textarea id="hash-file-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+      </div>
+
+      <p id="hash-file-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="hash-file-copy" class="tool-btn">Copy file hash</button>
+        <button type="button" id="hash-file-clear" class="tool-btn">Clear file</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>Hashing vs. encryption</h2>
+  <p>
+    Hashing and encryption are often confused, but they solve different problems. A hash function
+    is <strong>one-way</strong> and <strong>deterministic</strong>: the same input always produces
+    the same fixed-length output, and there is no key involved and no way to run the process
+    backwards to recover the original input from the hash. Encryption is the opposite —{" "}
+    <strong>reversible</strong> by design, using a key to turn ciphertext back into plaintext.
+    Hashing a password or a file doesn't "protect" it in a way you can later undo; it produces a
+    fingerprint you can compare against, and that's all.
+  </p>
+
+  <h2>Which algorithm should I use?</h2>
+  <p>
+    For anything security-adjacent — checksums, integrity checks, fingerprinting non-password data
+    — use <strong>SHA-256</strong>, <strong>SHA-384</strong>, or <strong>SHA-512</strong>. They're
+    part of the SHA-2 family and have no known practical breaks. <strong>SHA-1</strong> is included
+    here for legacy compatibility only: it's cryptographically broken for security purposes
+    (collision attacks — producing two different inputs with the same hash — are practical today),
+    so don't reach for it unless you're interoperating with an older system that specifically
+    requires it.
+  </p>
+  <p>
+    Regardless of algorithm, this tool is for <strong>general-purpose hashing</strong> — not
+    password storage. Passwords need a slow, salted key-derivation function like{" "}
+    <strong>bcrypt</strong> or <strong>argon2</strong>, which are deliberately expensive to compute
+    so brute-forcing them is impractical. A raw SHA-256 hash of a password is fast to compute, which
+    is exactly the wrong property for that job — it makes brute-forcing easier, not harder.
+  </p>
+
+  <h2>Examples</h2>
+  <p>You can verify your own output against these known values:</p>
+  <pre><code>{`SHA-256("hello") = 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824`}</code></pre>
+</ToolLayout>
+
+<script>
+  import { copyToClipboard, setError } from "../../../lib/tools-client";
+
+  const algoSelect = document.getElementById("hash-algo") as HTMLSelectElement;
+  const sha1Note = document.getElementById("hash-sha1-note") as HTMLParagraphElement;
+
+  const input = document.getElementById("hash-input") as HTMLTextAreaElement;
+  const output = document.getElementById("hash-output") as HTMLTextAreaElement;
+  const errorEl = document.getElementById("hash-error") as HTMLParagraphElement;
+  const copyBtn = document.getElementById("hash-copy") as HTMLButtonElement;
+  const clearBtn = document.getElementById("hash-clear") as HTMLButtonElement;
+
+  const fileInput = document.getElementById("hash-file") as HTMLInputElement;
+  const fileInfo = document.getElementById("hash-file-info") as HTMLParagraphElement;
+  const fileOutput = document.getElementById("hash-file-output") as HTMLTextAreaElement;
+  const fileErrorEl = document.getElementById("hash-file-error") as HTMLParagraphElement;
+  const fileCopyBtn = document.getElementById("hash-file-copy") as HTMLButtonElement;
+  const fileClearBtn = document.getElementById("hash-file-clear") as HTMLButtonElement;
+
+  function toHex(buffer: ArrayBuffer): string {
+    return Array.from(new Uint8Array(buffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  function updateSha1Note() {
+    sha1Note.hidden = algoSelect.value !== "SHA-1";
+  }
+
+  async function process() {
+    const value = input.value;
+    if (value === "") {
+      output.value = "";
+      setError(errorEl, null);
+      return;
+    }
+
+    try {
+      const digest = await crypto.subtle.digest(algoSelect.value, new TextEncoder().encode(value));
+      output.value = toHex(digest);
+      setError(errorEl, null);
+    } catch {
+      output.value = "";
+      setError(errorEl, "Couldn't compute the hash for this input.");
+    }
+  }
+
+  async function processFile() {
+    const file = fileInput.files?.[0];
+    if (!file) {
+      fileOutput.value = "";
+      setError(fileErrorEl, null);
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest(algoSelect.value, buffer);
+      fileOutput.value = toHex(digest);
+      setError(fileErrorEl, null);
+    } catch {
+      fileOutput.value = "";
+      setError(fileErrorEl, "Couldn't read or hash this file.");
+    }
+  }
+
+  algoSelect.addEventListener("change", () => {
+    updateSha1Note();
+    process();
+    processFile();
+  });
+  input.addEventListener("input", process);
+  updateSha1Note();
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    setError(errorEl, null);
+    input.focus();
+  });
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files?.[0];
+    if (!file) {
+      fileInfo.hidden = true;
+      fileOutput.value = "";
+      return;
+    }
+
+    fileInfo.hidden = false;
+    fileInfo.textContent = `${file.name} — ${file.size.toLocaleString()} bytes`;
+    processFile();
+  });
+
+  fileCopyBtn.addEventListener("click", () => copyToClipboard(fileOutput.value, fileCopyBtn));
+
+  fileClearBtn.addEventListener("click", () => {
+    fileInput.value = "";
+    fileInfo.hidden = true;
+    fileOutput.value = "";
+    setError(fileErrorEl, null);
+  });
+</script>

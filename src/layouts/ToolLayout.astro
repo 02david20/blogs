@@ -1,0 +1,100 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import { url } from "../lib/url";
+import { relatedTools } from "../lib/tools";
+import "../styles/tools.css";
+
+interface Props {
+  title: string;
+  tagline: string;
+  description: string;
+  related?: string[];
+}
+
+const { title, tagline, description, related = [] } = Astro.props;
+const relatedItems = relatedTools(related);
+---
+
+<BaseLayout title={title} description={description} type="website">
+  <div class="wrap wrap--wide tool-page">
+    <header class="tool-page__header">
+      <p class="eyebrow">
+        <a class="tool-page__crumb" href={url("/tools/")}>Developer Tools</a>
+      </p>
+      <h1 class="tool-page__title">{title}</h1>
+      <p class="tool-page__lede">{tagline}</p>
+    </header>
+
+    <div class="tool-page__app">
+      <slot name="app" />
+      <p class="tool-notice">Processed locally in your browser — nothing is uploaded.</p>
+    </div>
+
+    <div class="tool-doc">
+      <slot />
+    </div>
+
+    {
+      relatedItems.length > 0 && (
+        <section class="tool-page__related">
+          <div class="section-title">
+            <h2>Related tools</h2>
+          </div>
+          <div class="tool-card-grid">
+            {relatedItems.map((tool) => (
+              <a class="tool-card" href={url(`/tools/${tool.slug}`)}>
+                <span class="tool-card__title">{tool.title}</span>
+                <span class="tool-card__tagline">{tool.tagline}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .tool-page {
+    padding-block: var(--space-8) var(--space-6);
+  }
+
+  .tool-page__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    max-width: var(--measure);
+    margin-bottom: var(--space-6);
+  }
+
+  .tool-page__crumb {
+    text-decoration: none;
+  }
+
+  .tool-page__crumb:hover {
+    color: var(--accent);
+  }
+
+  .tool-page__title {
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .tool-page__lede {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text-muted);
+    max-width: 58ch;
+  }
+
+  .tool-page__related {
+    margin-top: var(--space-12);
+  }
+
+  @media (min-width: 48rem) {
+    .tool-page {
+      padding-block: var(--space-10) var(--space-8);
+    }
+  }
+</style>

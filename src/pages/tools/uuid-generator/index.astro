@@ -1,0 +1,169 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("uuid-generator")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["hash-generator", "base64", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="uuid-count">Quantity</label>
+          <input id="uuid-count" class="tool-input" type="number" min="1" max="1000" value="1" />
+        </div>
+        <button type="button" id="uuid-generate" class="tool-btn tool-btn--primary">Generate</button>
+      </div>
+
+      <p id="uuid-error" class="tool-error" role="alert" hidden></p>
+
+      <div class="tool-field">
+        <label for="uuid-output">Generated UUIDs</label>
+        <textarea id="uuid-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+      </div>
+
+      <ul id="uuid-list" class="uuid-list"></ul>
+
+      <div class="tool-toolbar">
+        <button type="button" id="uuid-copy-all" class="tool-btn">Copy all</button>
+        <button type="button" id="uuid-download" class="tool-btn">Download .txt</button>
+        <button type="button" id="uuid-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>UUID versions, briefly</h2>
+  <ul>
+    <li>
+      <strong>v1</strong> is time-based and incorporates the generating machine's MAC address —
+      which means it can leak information about the host that created it. It's rarely what you
+      want for a modern application.
+    </li>
+    <li>
+      <strong>v4</strong> is fully random: 122 bits of randomness (the other 6 bits are fixed
+      version/variant markers), with no host or time information encoded at all. This is what this
+      tool generates.
+    </li>
+    <li>
+      <strong>v5</strong> is name-based and deterministic — it's a hash of a namespace plus a name,
+      so the same namespace+name pair always produces the same UUID. That's a different use case
+      entirely (e.g. deriving a stable id from an existing key), not a substitute for random
+      generation.
+    </li>
+  </ul>
+
+  <h2>When is UUID v4 appropriate?</h2>
+  <p>
+    Use UUID v4 whenever you need a unique-enough identifier and there's no central authority
+    coordinating who hands out which id — database primary keys, request/trace ids, generated
+    filenames, idempotency keys. Any process, anywhere, can generate one independently with
+    essentially zero chance of colliding with one generated elsewhere.
+  </p>
+  <p>
+    That "essentially zero chance" isn't hand-waving: a v4 UUID has 122 random bits, giving 2
+    <sup>122</sup> ≈ 5.3 × 10<sup>36</sup> possible values. Using the birthday-paradox approximation,
+    you'd need on the order of 2<sup>61</sup> (roughly 2.1 billion billion, i.e. ~2.1 × 10
+    <sup>18</sup>) generated UUIDs before the probability of any collision reaches just 50%. Realistic
+    applications generate nowhere near that volume, which is why it's standard practice to treat v4
+    collisions as effectively impossible and not check for them.
+  </p>
+</ToolLayout>
+
+<style>
+  .uuid-list {
+    list-style: none;
+    padding-left: 0;
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .uuid-list:empty {
+    display: none;
+  }
+
+  .uuid-list__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .uuid-list__value {
+    flex: 1;
+    word-break: break-all;
+  }
+</style>
+
+<script>
+  import { copyToClipboard, download, setError } from "../../../lib/tools-client";
+
+  const countInput = document.getElementById("uuid-count") as HTMLInputElement;
+  const generateBtn = document.getElementById("uuid-generate") as HTMLButtonElement;
+  const errorEl = document.getElementById("uuid-error") as HTMLParagraphElement;
+  const output = document.getElementById("uuid-output") as HTMLTextAreaElement;
+  const list = document.getElementById("uuid-list") as HTMLUListElement;
+  const copyAllBtn = document.getElementById("uuid-copy-all") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("uuid-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("uuid-clear") as HTMLButtonElement;
+
+  let current: string[] = [];
+
+  function render() {
+    output.value = current.join("\n");
+    list.innerHTML = "";
+    for (const uuid of current) {
+      const li = document.createElement("li");
+      li.className = "uuid-list__row";
+
+      const span = document.createElement("span");
+      span.className = "uuid-list__value";
+      span.textContent = uuid;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tool-btn";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", () => copyToClipboard(uuid, btn));
+
+      li.appendChild(span);
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+  }
+
+  function generate() {
+    const quantity = Math.trunc(Number(countInput.value));
+    if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) {
+      setError(errorEl, "Enter a quantity between 1 and 1000.");
+      return;
+    }
+
+    setError(errorEl, null);
+    current = Array.from({ length: quantity }, () => crypto.randomUUID());
+    render();
+  }
+
+  generateBtn.addEventListener("click", generate);
+
+  copyAllBtn.addEventListener("click", () => copyToClipboard(current.join("\n"), copyAllBtn));
+
+  downloadBtn.addEventListener("click", () => download("uuids.txt", current.join("\n")));
+
+  clearBtn.addEventListener("click", () => {
+    current = [];
+    render();
+    setError(errorEl, null);
+  });
+
+  // Generate one on load so the tool isn't empty on first visit.
+  generate();
+</script>
