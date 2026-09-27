@@ -1,0 +1,81 @@
+---
+/**
+ * Renders any `<div class="mermaid" data-mermaid-source>` produced by the
+ * remark plugin. Mermaid itself is a dynamic import, so it becomes its own
+ * chunk and is only fetched on pages that contain a diagram — the previous
+ * build pulled it from a CDN on every page of the site.
+ */
+---
+
+<script>
+  const nodes = Array.from(
+    document.querySelectorAll<HTMLElement>(".mermaid[data-mermaid-source]"),
+  );
+
+  if (nodes.length > 0) {
+    const { default: mermaid } = await import("mermaid");
+
+    const readTheme = () => {
+      const styles = getComputedStyle(document.documentElement);
+      const v = (name: string) => styles.getPropertyValue(name).trim();
+      const isDark =
+        document.documentElement.getAttribute("data-theme") === "dark" ||
+        (!document.documentElement.hasAttribute("data-theme") &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+      return {
+        isDark,
+        variables: {
+          background: v("--bg-subtle"),
+          primaryColor: v("--bg-inset"),
+          primaryTextColor: v("--text"),
+          primaryBorderColor: v("--border-strong"),
+          secondaryColor: v("--bg-subtle"),
+          tertiaryColor: v("--bg-subtle"),
+          lineColor: v("--text-faint"),
+          textColor: v("--text"),
+          fontFamily: v("--font-sans") || "sans-serif",
+          fontSize: "14px",
+        },
+      };
+    };
+
+    let sequence = 0;
+
+    const renderAll = async () => {
+      const { isDark, variables } = readTheme();
+
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        theme: "base",
+        darkMode: isDark,
+        themeVariables: variables,
+        flowchart: { useMaxWidth: true, htmlLabels: true },
+      });
+
+      await Promise.all(
+        nodes.map(async (node) => {
+          const source = node.dataset.mermaidSource ?? "";
+          try {
+            const { svg } = await mermaid.render(`mermaid-${sequence++}`, source);
+            node.innerHTML = svg;
+            node.removeAttribute("data-failed");
+            node.setAttribute("data-rendered", "");
+          } catch {
+            node.textContent = "This diagram could not be rendered.";
+            node.setAttribute("data-failed", "");
+            node.setAttribute("data-rendered", "");
+          }
+        }),
+      );
+    };
+
+    await renderAll();
+
+    // Redraw in the new palette when the reader flips the theme.
+    window.addEventListener("themechange", () => {
+      void renderAll();
+    });
+  }
+</script>

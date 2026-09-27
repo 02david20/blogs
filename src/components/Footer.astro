@@ -1,0 +1,83 @@
+---
+import { SITE } from "../lib/site";
+import { url } from "../lib/url";
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="wrap wrap--wide site-footer__inner">
+    <p class="site-footer__copy">
+      &copy; {year} {SITE.name}
+    </p>
+
+    <ul class="site-footer__links">
+      <li>
+        <a class="site-footer__link" href={`https://github.com/${SITE.github}`} rel="me noopener">
+          GitHub
+        </a>
+      </li>
+      <li>
+        <a
+          class="site-footer__link"
+          href={`https://www.linkedin.com/in/${SITE.linkedin}`}
+          rel="me noopener"
+        >
+          LinkedIn
+        </a>
+      </li>
+      <li>
+        <a class="site-footer__link" href={url("/feed.xml").replace(/\/$/, "")}>RSS</a>
+      </li>
+    </ul>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: var(--space-14);
+    border-top: 1px solid var(--border);
+    padding-block: var(--space-6);
+  }
+
+  .site-footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .site-footer__copy {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wide);
+    color: var(--text-faint);
+  }
+
+  .site-footer__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-footer__link {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .site-footer__link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .site-footer__link {
+      transition: color var(--duration-fast) var(--ease);
+    }
+  }
+</style>

@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { tagUrl } from "../../lib/url";
+import { getPublishedPosts, tagCounts } from "../../lib/posts";
+
+const posts = await getPublishedPosts();
+const topics = tagCounts(posts);
+---
+
+<BaseLayout
+  title="Topics"
+  description="Everything on this site, grouped by subject."
+>
+  <div class="wrap wrap--wide topics">
+    <header class="topics__header">
+      <h1 class="topics__title">Topics</h1>
+      <p class="topics__lede">
+        {topics.length} subjects across {posts.length}
+        {posts.length === 1 ? "post" : "posts"}.
+      </p>
+    </header>
+
+    <ul class="topics__grid">
+      {
+        topics.map(({ tag, count }) => (
+          <li>
+            <a class="topic" href={tagUrl(tag)}>
+              <span class="topic__name">{tag}</span>
+              <span class="topic__count">
+                {count} {count === 1 ? "post" : "posts"}
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</BaseLayout>
+
+<style>
+  .topics {
+    padding-block: var(--space-10) var(--space-6);
+  }
+
+  .topics__header {
+    margin-bottom: var(--space-10);
+  }
+
+  .topics__title {
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .topics__lede {
+    margin-top: var(--space-2);
+    color: var(--text-muted);
+  }
+
+  .topics__grid {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  }
+
+  .topic {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  .topic:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .topic__name {
+    font-weight: 550;
+  }
+
+  .topic__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .topic {
+      transition:
+        color var(--duration-fast) var(--ease),
+        border-color var(--duration-fast) var(--ease);
+    }
+  }
+</style>

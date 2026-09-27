@@ -1,3 +1,0 @@
-I’m a Software Engineer who enjoys working close to the system—where infrastructure, reliability, and performance meet. I spend most of my time building and maintaining containerized platforms with Docker and Kubernetes, and I enjoy turning complex infrastructure problems into clean, reliable solutions.
-
-I’m naturally curious about how systems work under the hood and I value thoughtful engineering, automation, and simplicity. Outside of building systems, I’m always learning, experimenting with new tools, and looking for better ways to design scalable and resilient software.

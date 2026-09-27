@@ -1,0 +1,124 @@
+---
+import PostMeta from "./PostMeta.astro";
+import { postUrl, tagUrl } from "../lib/url";
+
+interface Props {
+  id: string;
+  title: string;
+  description: string;
+  pubDate: Date;
+  readingTime?: number;
+  tags?: string[];
+  /** Renders the first entry of a list with more presence. */
+  featured?: boolean;
+}
+
+const { id, title, description, pubDate, readingTime, tags = [], featured = false } = Astro.props;
+---
+
+<article class:list={["entry", featured && "entry--featured"]}>
+  <PostMeta date={pubDate} readingTime={readingTime} class="entry__meta" />
+
+  <div class="entry__body">
+    <h3 class="entry__title">
+      <a href={postUrl(id)}>{title}</a>
+    </h3>
+    <p class="entry__desc">{description}</p>
+    {
+      tags.length > 0 && (
+        <ul class="tag-list entry__tags">
+          {tags.map((tag) => (
+            <li>
+              <a class="tag" href={tagUrl(tag)}>
+                {tag}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</article>
+
+<style>
+  .entry {
+    position: relative;
+    display: grid;
+    gap: var(--space-2);
+    padding-block: var(--space-5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .entry__meta {
+    padding-top: 0.15rem;
+  }
+
+  .entry__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .entry__title {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: var(--tracking-snug);
+  }
+
+  .entry__title a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  /* Whole row is the target, but only the title is in the tab order. */
+  .entry__title a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .entry:hover .entry__title a {
+    color: var(--accent);
+  }
+
+  .entry__desc {
+    color: var(--text-muted);
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
+    max-width: 62ch;
+  }
+
+  /* Tags sit above the stretched link so they stay individually clickable. */
+  .entry__tags {
+    position: relative;
+    z-index: 1;
+    margin-top: var(--space-1);
+  }
+
+  .entry--featured .entry__title {
+    font-size: var(--text-2xl);
+  }
+
+  .entry--featured .entry__desc {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text);
+  }
+
+  /* A true index layout once there's room for a date column. */
+  @media (min-width: 48rem) {
+    .entry {
+      grid-template-columns: 10rem 1fr;
+      gap: var(--space-5);
+      padding-block: var(--space-6);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .entry__title a {
+      transition: color var(--duration-fast) var(--ease);
+    }
+  }
+</style>

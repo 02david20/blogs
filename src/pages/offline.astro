@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { url } from "../lib/url";
+---
+
+<BaseLayout title="Offline" description="You're offline." noindex>
+  <div class="wrap wrap--prose notice">
+    <p class="eyebrow">No connection</p>
+    <h1 class="notice__title">You&rsquo;re offline</h1>
+    <p class="notice__body">
+      This page hasn&rsquo;t been cached yet. Posts you&rsquo;ve already opened are still available.
+    </p>
+    <p class="notice__actions">
+      <a class="text-link" href={url("/")}>Back to the homepage &rarr;</a>
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .notice {
+    padding-block: var(--space-14) var(--space-12);
+  }
+
+  .notice__title {
+    margin-block: var(--space-3) var(--space-4);
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .notice__body {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text-muted);
+    max-width: 48ch;
+  }
+
+  .notice__actions {
+    margin-top: var(--space-6);
+  }
+</style>

@@ -1,0 +1,55 @@
+---
+import type { ImageMetadata } from "astro";
+
+import BaseHead from "../components/BaseHead.astro";
+import ThemeScript from "../components/ThemeScript.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { SITE } from "../lib/site";
+
+interface Props {
+  title: string;
+  description: string;
+  image?: ImageMetadata;
+  type?: "website" | "article";
+  publishedDate?: Date;
+  updatedDate?: Date;
+  tags?: string[];
+  noindex?: boolean;
+}
+
+const props = Astro.props;
+---
+
+<!doctype html>
+<html lang={SITE.locale}>
+  <head>
+    <ThemeScript />
+    <BaseHead {...props} />
+  </head>
+  <body>
+    <div class="page">
+      <a class="skip-link" href="#main">Skip to content</a>
+      <Header />
+      <main id="main" class="page__main">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+
+    <script>
+      // The previous Jekyll site shipped an aggressive stale-while-revalidate
+      // worker. Registering at the same scope lets the new one take over and
+      // purge its caches; see public/sw-src.js.
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/sw.js`)
+            .catch(() => {
+              /* Offline support is a progressive enhancement. */
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

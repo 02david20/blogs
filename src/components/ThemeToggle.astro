@@ -1,0 +1,119 @@
+---
+/** Toggles between light and dark, persisting the choice. */
+---
+
+<button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch theme">
+  <svg class="theme-toggle__icon theme-toggle__sun" viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2"></circle>
+    <path d="M12 2.6v2.3M12 19.1v2.3M21.4 12h-2.3M4.9 12H2.6M18.6 5.4l-1.6 1.6M7 17l-1.6 1.6M18.6 18.6L17 17M7 7 5.4 5.4"></path>
+  </svg>
+  <svg class="theme-toggle__icon theme-toggle__moon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M20.5 14.2A8.4 8.4 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7Z"></path>
+  </svg>
+</button>
+
+<style>
+  .theme-toggle {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--border);
+    background-color: var(--bg-subtle);
+    color: var(--text);
+  }
+
+  .theme-toggle__icon {
+    grid-area: 1 / 1;
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* Show the icon for the theme you would switch *to*. */
+  .theme-toggle__moon {
+    display: none;
+  }
+
+  :global(:root[data-theme="dark"]) .theme-toggle__moon {
+    display: block;
+  }
+
+  :global(:root[data-theme="dark"]) .theme-toggle__sun {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .theme-toggle__moon {
+      display: block;
+    }
+
+    :global(:root:not([data-theme="light"])) .theme-toggle__sun {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .theme-toggle {
+      transition:
+        color var(--duration-fast) var(--ease),
+        background-color var(--duration-fast) var(--ease),
+        border-color var(--duration-fast) var(--ease);
+    }
+  }
+</style>
+
+<script>
+  const root = document.documentElement;
+
+  const effectiveTheme = (): "light" | "dark" => {
+    const attr = root.getAttribute("data-theme");
+    if (attr === "light" || attr === "dark") return attr;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  };
+
+  const syncLabel = (button: HTMLElement) => {
+    const next = effectiveTheme() === "dark" ? "light" : "dark";
+    button.setAttribute("aria-label", `Switch to ${next} theme`);
+  };
+
+  const apply = (theme: "light" | "dark") => {
+    root.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      /* Storage unavailable: the choice simply won't persist. */
+    }
+    // Lets the mermaid renderer redraw diagrams in the new palette.
+    window.dispatchEvent(new CustomEvent("themechange", { detail: { theme } }));
+  };
+
+  document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach((button) => {
+    syncLabel(button);
+    button.addEventListener("click", () => {
+      apply(effectiveTheme() === "dark" ? "light" : "dark");
+      document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach(syncLabel);
+    });
+  });
+
+  // Track the OS preference while the reader has not made an explicit choice.
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (!root.hasAttribute("data-theme")) {
+      document.querySelectorAll<HTMLElement>("[data-theme-toggle]").forEach(syncLabel);
+      window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: effectiveTheme() } }));
+    }
+  });
+</script>

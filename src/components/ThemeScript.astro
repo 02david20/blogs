@@ -1,0 +1,20 @@
+---
+/**
+ * Runs before first paint so a reader who chose a theme never sees a flash of
+ * the other one. Absence of the attribute means "follow the OS", which the
+ * stylesheet handles with a prefers-color-scheme query.
+ */
+---
+
+<script is:inline>
+  (function () {
+    try {
+      var stored = localStorage.getItem("theme");
+      if (stored === "light" || stored === "dark") {
+        document.documentElement.setAttribute("data-theme", stored);
+      }
+    } catch (e) {
+      /* Private mode or blocked storage: fall back to the OS preference. */
+    }
+  })();
+</script>

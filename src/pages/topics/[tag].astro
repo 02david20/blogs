@@ -1,0 +1,80 @@
+---
+import type { GetStaticPaths } from "astro";
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PostListItem from "../../components/PostListItem.astro";
+import { url, tagSlug } from "../../lib/url";
+import { getPublishedPosts, readingTimeOf, tagCounts } from "../../lib/posts";
+
+export const getStaticPaths = (async () => {
+  const posts = await getPublishedPosts();
+
+  return tagCounts(posts).map(({ tag }) => ({
+    params: { tag: tagSlug(tag) },
+    props: {
+      tag,
+      posts: posts.filter((post) => post.data.tags.includes(tag)),
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout
+  title={tag}
+  description={`Posts tagged ${tag} — ${posts.length} in total.`}
+>
+  <div class="wrap wrap--wide listing">
+    <header class="listing__header">
+      <p class="eyebrow">Topic</p>
+      <h1 class="listing__title">{tag}</h1>
+      <p class="listing__count">
+        {posts.length} {posts.length === 1 ? "post" : "posts"}
+      </p>
+      <a class="text-link" href={url("/topics/")}>&larr; All topics</a>
+    </header>
+
+    {
+      posts.map((post) => (
+        <PostListItem
+          id={post.id}
+          title={post.data.title}
+          description={post.data.description}
+          pubDate={post.data.pubDate}
+          readingTime={readingTimeOf(post)}
+          tags={post.data.tags}
+        />
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .listing {
+    padding-block: var(--space-10) var(--space-6);
+  }
+
+  .listing__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .listing__title {
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .listing__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+</style>

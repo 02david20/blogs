@@ -1,0 +1,20 @@
+{
+  "name": "David Huynh",
+  "short_name": "David Huynh",
+  "description": "Notes on backend systems, infrastructure and reliability.",
+  "start_url": "/blogs/",
+  "scope": "/blogs/",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#fbfaf8",
+  "icons": [
+    { "src": "/blogs/pwa/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/blogs/pwa/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/blogs/pwa/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

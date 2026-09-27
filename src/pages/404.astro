@@ -1,0 +1,42 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { url } from "../lib/url";
+---
+
+<BaseLayout title="Page not found" description="That page doesn't exist." noindex>
+  <div class="wrap wrap--prose notice">
+    <p class="eyebrow">Error 404</p>
+    <h1 class="notice__title">This page doesn&rsquo;t exist</h1>
+    <p class="notice__body">
+      The link may be out of date, or the page may have moved. The writing is all still here.
+    </p>
+    <p class="notice__actions">
+      <a class="text-link" href={url("/blog/")}>Browse all posts &rarr;</a>
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .notice {
+    padding-block: var(--space-14) var(--space-12);
+    text-align: left;
+  }
+
+  .notice__title {
+    margin-block: var(--space-3) var(--space-4);
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .notice__body {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text-muted);
+    max-width: 48ch;
+  }
+
+  .notice__actions {
+    margin-top: var(--space-6);
+  }
+</style>
