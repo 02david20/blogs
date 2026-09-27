@@ -81,8 +81,9 @@ paint so there is no flash.
 
 ## Deployment
 
-Pushing to `gh-pages` runs `.github/workflows/deploy.yml`, which builds and publishes to
-GitHub Pages.
+Pushing to `master` runs `.github/workflows/deploy.yml`, which builds and publishes to
+GitHub Pages. `master` is the source branch; the legacy `gh-pages` branch still holds the
+old Jekyll site and is no longer used once Pages is served from Actions.
 
 > **One-time setup:** in repo *Settings → Pages*, set **Source** to **GitHub Actions**.
 > Until that is done the workflow will succeed but the live site will keep serving the

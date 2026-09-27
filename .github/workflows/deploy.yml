@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [gh-pages]
+    branches: [master]
   workflow_dispatch:
 
 # Allow the workflow to publish to Pages.
