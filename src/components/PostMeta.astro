@@ -1,0 +1,24 @@
+---
+import FormattedDate from "./FormattedDate.astro";
+
+interface Props {
+  date: Date;
+  readingTime?: number;
+  format?: "long" | "short";
+  class?: string;
+}
+
+const { date, readingTime, format = "short", class: className } = Astro.props;
+---
+
+<div class:list={["post-meta", className]}>
+  <FormattedDate date={date} format={format} />
+  {
+    readingTime && (
+      <>
+        <span class="post-meta__sep" aria-hidden="true">&middot;</span>
+        <span>{readingTime} min read</span>
+      </>
+    )
+  }
+</div>

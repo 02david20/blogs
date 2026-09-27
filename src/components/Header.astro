@@ -1,0 +1,139 @@
+---
+import ThemeToggle from "./ThemeToggle.astro";
+import { SITE, NAV_LINKS } from "../lib/site";
+import { url } from "../lib/url";
+
+const here = Astro.url.pathname.replace(/\/+$/, "/") || "/";
+
+const isCurrent = (href: string) => {
+  const target = url(href);
+  if (href === "/") return here === target;
+  return here === target || here.startsWith(target);
+};
+---
+
+<header class="site-header">
+  <div class="wrap wrap--wide site-header__inner">
+    <a class="site-header__brand" href={url("/")}>
+      {SITE.name}
+    </a>
+
+    <div class="site-header__end">
+      <nav class="site-nav" aria-label="Primary">
+        <ul class="site-nav__list">
+          {
+            NAV_LINKS.map(({ href, label }) => (
+              <li>
+                <a
+                  href={url(href)}
+                  class="site-nav__link"
+                  aria-current={isCurrent(href) ? "page" : undefined}
+                >
+                  {label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+      <ThemeToggle />
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg);
+  }
+
+  .site-header__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-block: var(--space-3);
+  }
+
+  .site-header__brand {
+    font-size: var(--text-md);
+    font-weight: 600;
+    letter-spacing: var(--tracking-snug);
+    text-decoration: none;
+    color: var(--text);
+    align-self: flex-start;
+  }
+
+  .site-header__brand:hover {
+    color: var(--accent);
+  }
+
+  .site-header__end {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+
+  .site-nav__list {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .site-nav__link {
+    display: block;
+    /* 44px touch target on phones without inflating the desktop header. */
+    padding: 0.6rem 0.7rem;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    font-size: var(--text-md);
+    text-decoration: none;
+  }
+
+  .site-nav__link:hover {
+    color: var(--text);
+    background-color: var(--bg-subtle);
+  }
+
+  .site-nav__link[aria-current="page"] {
+    color: var(--text);
+    font-weight: 550;
+  }
+
+  /* One compact row, and sticky, once there is width for it. */
+  @media (min-width: 40rem) {
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .site-header__inner {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-6);
+      padding-block: var(--space-4);
+    }
+
+    .site-header__brand {
+      align-self: auto;
+    }
+
+    .site-nav__link {
+      padding: 0.4rem 0.7rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .site-header__brand,
+    .site-nav__link {
+      transition:
+        color var(--duration-fast) var(--ease),
+        background-color var(--duration-fast) var(--ease);
+    }
+  }
+</style>

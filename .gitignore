@@ -1,13 +1,23 @@
-_site
-_posts/_draft
-_posts/_archive
-_archive
-node_modules
-.vscode
-*.log
-*.lock
-*.sh
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# generated types
+*.tsbuildinfo
+
+# environment
+.env
+.env.production
+
+# editors / os
+.vscode/
+.idea/
 .DS_Store
-.jekyll-cache
 */.DS_Store
-*/*/.DS_Store
+
+# logs
+*.log
+npm-debug.log*

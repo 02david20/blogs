@@ -1,0 +1,60 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import aboutOg from "../assets/site/about-og.jpg";
+import { SITE } from "../lib/site";
+import "../styles/prose.css";
+---
+
+<BaseLayout
+  title="About"
+  description={`About ${SITE.name} — ${SITE.tagline}.`}
+  image={aboutOg}
+>
+  <div class="wrap wrap--prose about">
+    <header class="about__header">
+      <p class="eyebrow">{SITE.tagline}</p>
+      <h1 class="about__title">About</h1>
+    </header>
+
+    <div class="prose">
+      <p>
+        I&rsquo;m a Software Engineer who enjoys working close to the system&mdash;where
+        infrastructure, reliability, and performance meet. I spend most of my time building and
+        maintaining containerized platforms with Docker and Kubernetes, and I enjoy turning complex
+        infrastructure problems into clean, reliable solutions.
+      </p>
+      <p>
+        I&rsquo;m naturally curious about how systems work under the hood and I value thoughtful
+        engineering, automation, and simplicity. Outside of building systems, I&rsquo;m always
+        learning, experimenting with new tools, and looking for better ways to design scalable and
+        resilient software.
+      </p>
+
+      <h2>Elsewhere</h2>
+      <ul>
+        <li>
+          <a href={`https://github.com/${SITE.github}`} rel="me noopener">GitHub</a>
+        </li>
+        <li>
+          <a href={`https://www.linkedin.com/in/${SITE.linkedin}`} rel="me noopener">LinkedIn</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .about {
+    padding-block: var(--space-10) var(--space-6);
+  }
+
+  .about__header {
+    margin-bottom: var(--space-8);
+  }
+
+  .about__title {
+    margin-top: var(--space-3);
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+</style>

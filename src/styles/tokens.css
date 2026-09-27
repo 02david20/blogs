@@ -1,0 +1,143 @@
+/* ==========================================================================
+   Design tokens
+   Two layers: a raw palette, then semantic tokens. Only semantic tokens are
+   used by components, so retheming means editing this file and nothing else.
+   ========================================================================== */
+
+:root {
+  /* --- Type families ---------------------------------------------------- */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4 Variable", ui-serif, Georgia, Cambria,
+    "Times New Roman", serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  /* --- Type scale -------------------------------------------------------
+     Fluid between a 360px and a 1280px viewport. `--text-prose` is the one
+     that matters most: 17px on a phone, 19px on a laptop.                  */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-prose: clamp(1.0625rem, 1.005rem + 0.25vw, 1.1875rem);
+  --text-lg: clamp(1.0625rem, 1rem + 0.3vw, 1.25rem);
+  --text-xl: clamp(1.1875rem, 1.09rem + 0.44vw, 1.4375rem);
+  --text-2xl: clamp(1.375rem, 1.2rem + 0.78vw, 1.875rem);
+  --text-3xl: clamp(1.625rem, 1.32rem + 1.35vw, 2.5rem);
+  --text-4xl: clamp(2rem, 1.47rem + 2.35vw, 3.5rem);
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+  --leading-prose: 1.7;
+
+  --tracking-tight: -0.022em;
+  --tracking-snug: -0.012em;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.09em;
+
+  /* --- Spacing scale ----------------------------------------------------- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 2.5rem;
+  --space-10: 3.5rem;
+  --space-12: 4.5rem;
+  --space-14: 6rem;
+  --space-16: 8rem;
+
+  /* --- Measure & layout -------------------------------------------------- */
+  --measure: 68ch;
+  --width-prose: 44rem;
+  --width-content: 56rem;
+  --width-wide: 74rem;
+  --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-full: 999em;
+
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+
+  /* --- Raw palette ------------------------------------------------------- */
+  --warm-50: #fbfaf8;
+  --warm-100: #f4f2ec;
+  --warm-200: #e7e3d9;
+  --warm-300: #d3cdbf;
+  --warm-500: #8a8377;
+  --warm-600: #6b6459;
+  --warm-700: #4a453d;
+  --warm-850: #211f1c;
+  --warm-900: #191715;
+  --warm-950: #131211;
+
+  --ochre-600: #9a5a06;
+  --ochre-700: #7d4a05;
+  --ochre-300: #e8ab55;
+  --ochre-200: #f0c185;
+
+  color-scheme: light;
+
+  /* --- Semantic tokens: light ------------------------------------------- */
+  --bg: var(--warm-50);
+  --bg-subtle: var(--warm-100);
+  --bg-inset: #ffffff;
+  --text: #1a1714;
+  --text-muted: var(--warm-600);
+  --text-faint: var(--warm-500);
+  --border: var(--warm-200);
+  --border-strong: var(--warm-300);
+  --accent: var(--ochre-600);
+  --accent-hover: var(--ochre-700);
+  --accent-contrast: #ffffff;
+  --code-bg: var(--warm-100);
+  --selection: #f6dfb8;
+  --shadow-sm: 0 1px 2px rgb(26 23 20 / 0.05);
+}
+
+/* --- Semantic tokens: dark ---------------------------------------------
+   Applied when the OS prefers dark AND the reader has not forced light,
+   or when the reader has explicitly chosen dark.                          */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: var(--warm-950);
+    --bg-subtle: var(--warm-900);
+    --bg-inset: var(--warm-850);
+    --text: #ece8e1;
+    --text-muted: #9d958a;
+    --text-faint: #7b746a;
+    --border: #2c2925;
+    --border-strong: #3d3933;
+    --accent: var(--ochre-300);
+    --accent-hover: var(--ochre-200);
+    --accent-contrast: var(--warm-950);
+    --code-bg: var(--warm-900);
+    --selection: #4a3714;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--warm-950);
+  --bg-subtle: var(--warm-900);
+  --bg-inset: var(--warm-850);
+  --text: #ece8e1;
+  --text-muted: #9d958a;
+  --text-faint: #7b746a;
+  --border: #2c2925;
+  --border-strong: #3d3933;
+  --accent: var(--ochre-300);
+  --accent-hover: var(--ochre-200);
+  --accent-contrast: var(--warm-950);
+  --code-bg: var(--warm-900);
+  --selection: #4a3714;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+}

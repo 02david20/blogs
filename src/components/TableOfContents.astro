@@ -1,0 +1,195 @@
+---
+import type { MarkdownHeading } from "astro";
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+/* h2 and h3 only. Deeper levels make the rail noisy, and one post nests to h4. */
+const items = Astro.props.headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  items.length > 1 && (
+    <details class="toc" data-toc>
+      <summary class="toc__summary">
+        <span class="eyebrow">On this page</span>
+        <svg class="toc__chevron" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </summary>
+
+      <nav aria-label="Table of contents">
+        <ol class="toc__list">
+          {items.map((heading) => (
+            <li class:list={["toc__item", `toc__item--h${heading.depth}`]}>
+              <a class="toc__link" href={`#${heading.slug}`} data-toc-link={heading.slug}>
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </details>
+  )
+}
+
+<style>
+  .toc {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    background-color: var(--bg-subtle);
+  }
+
+  .toc__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    cursor: pointer;
+    /* Comfortable touch target without inflating the desktop rail. */
+    padding-block: var(--space-2);
+    list-style: none;
+  }
+
+  .toc__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .toc__chevron {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    fill: none;
+    stroke: var(--text-faint);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .toc[open] .toc__chevron {
+    transform: rotate(180deg);
+  }
+
+  .toc__list {
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+    border-left: 1px solid var(--border-strong);
+  }
+
+  .toc__item--h3 {
+    padding-left: var(--space-3);
+  }
+
+  .toc__link {
+    display: block;
+    padding: 0.35rem 0 0.35rem var(--space-3);
+    margin-left: -1px;
+    border-left: 1px solid transparent;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+    text-decoration: none;
+  }
+
+  .toc__link:hover {
+    color: var(--text);
+  }
+
+  .toc__link[aria-current="true"] {
+    border-left-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* In the desktop rail it is always open and needs no chrome. */
+  @media (min-width: 72rem) {
+    .toc {
+      border: 0;
+      padding: 0;
+      background: none;
+    }
+
+    .toc__summary {
+      cursor: default;
+      pointer-events: none;
+      padding-block: 0;
+      margin-bottom: var(--space-3);
+    }
+
+    .toc__chevron {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .toc__link {
+      transition:
+        color var(--duration-fast) var(--ease),
+        border-color var(--duration-fast) var(--ease);
+    }
+
+    .toc__chevron {
+      transition: transform var(--duration-base) var(--ease);
+    }
+  }
+</style>
+
+<script>
+  const toc = document.querySelector<HTMLDetailsElement>("[data-toc]");
+
+  if (toc) {
+    /* Open by default in the desktop rail, collapsed on small screens. */
+    const wide = window.matchMedia("(min-width: 72rem)");
+    const syncOpen = () => {
+      toc.open = wide.matches;
+    };
+    syncOpen();
+    wide.addEventListener("change", syncOpen);
+
+    const links = new Map<string, HTMLAnchorElement>();
+    toc.querySelectorAll<HTMLAnchorElement>("[data-toc-link]").forEach((link) => {
+      links.set(link.dataset.tocLink!, link);
+    });
+
+    const targets = [...links.keys()]
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+
+    let current: string | null = null;
+    const setCurrent = (id: string | null) => {
+      if (id === current) return;
+      if (current) links.get(current)?.removeAttribute("aria-current");
+      if (id) links.get(id)?.setAttribute("aria-current", "true");
+      current = id;
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+        if (visible.length > 0) {
+          setCurrent(visible[0]!.target.id);
+          return;
+        }
+
+        // Nothing in the band: fall back to the last heading scrolled past.
+        const above = targets.filter((el) => el.getBoundingClientRect().top < 100);
+        setCurrent(above.length > 0 ? above[above.length - 1]!.id : null);
+      },
+      { rootMargin: "-80px 0px -66% 0px", threshold: 0 },
+    );
+
+    targets.forEach((el) => observer.observe(el));
+
+    /* Collapse again after following a link on small screens. */
+    toc.addEventListener("click", (event) => {
+      if (!wide.matches && (event.target as HTMLElement).closest("[data-toc-link]")) {
+        toc.open = false;
+      }
+    });
+  }
+</script>

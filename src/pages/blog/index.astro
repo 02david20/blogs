@@ -1,0 +1,82 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PostListItem from "../../components/PostListItem.astro";
+import blogOg from "../../assets/site/blog-og.jpg";
+import { getPublishedPosts, readingTimeOf } from "../../lib/posts";
+
+const posts = await getPublishedPosts();
+
+/* Group by year so the index reads as an archive without extra chrome. */
+const byYear = posts.reduce<Map<number, typeof posts>>((acc, post) => {
+  const year = post.data.pubDate.getUTCFullYear();
+  acc.set(year, [...(acc.get(year) ?? []), post]);
+  return acc;
+}, new Map());
+
+const years = [...byYear.keys()].sort((a, b) => b - a);
+---
+
+<BaseLayout
+  title="Blog"
+  description="Every post — backend systems, infrastructure, reliability and debugging."
+  image={blogOg}
+>
+  <div class="wrap wrap--wide listing">
+    <header class="listing__header">
+      <h1 class="listing__title">Blog</h1>
+      <p class="listing__count">
+        {posts.length} {posts.length === 1 ? "post" : "posts"}
+      </p>
+    </header>
+
+    {
+      years.map((year) => (
+        <section class="listing__year">
+          <div class="section-title">
+            <h2>{year}</h2>
+          </div>
+          {byYear.get(year)!.map((post) => (
+            <PostListItem
+              id={post.id}
+              title={post.data.title}
+              description={post.data.description}
+              pubDate={post.data.pubDate}
+              readingTime={readingTimeOf(post)}
+              tags={post.data.tags}
+            />
+          ))}
+        </section>
+      ))
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .listing {
+    padding-block: var(--space-10) var(--space-6);
+  }
+
+  .listing__header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    margin-bottom: var(--space-10);
+  }
+
+  .listing__title {
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .listing__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .listing__year + .listing__year {
+    margin-top: var(--space-10);
+  }
+</style>

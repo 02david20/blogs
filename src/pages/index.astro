@@ -1,0 +1,129 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PostListItem from "../components/PostListItem.astro";
+import { SITE } from "../lib/site";
+import { url, tagUrl } from "../lib/url";
+import { getPublishedPosts, readingTimeOf, tagCounts } from "../lib/posts";
+
+const posts = await getPublishedPosts();
+const [featured, ...rest] = posts;
+const recent = rest.slice(0, 4);
+const topics = tagCounts(posts).slice(0, 10);
+---
+
+<BaseLayout title={SITE.title} description={SITE.description}>
+  <div class="wrap wrap--wide home">
+    <section class="intro">
+      <p class="eyebrow">{SITE.tagline}</p>
+      <h1 class="intro__heading">{SITE.name}</h1>
+      <p class="intro__body">{SITE.intro}</p>
+    </section>
+
+    {
+      featured && (
+        <section class="home__section">
+          <div class="section-title">
+            <h2>Latest</h2>
+          </div>
+          <PostListItem
+            id={featured.id}
+            title={featured.data.title}
+            description={featured.data.description}
+            pubDate={featured.data.pubDate}
+            readingTime={readingTimeOf(featured)}
+            tags={featured.data.tags}
+            featured
+          />
+        </section>
+      )
+    }
+
+    {
+      recent.length > 0 && (
+        <section class="home__section">
+          <div class="section-title">
+            <h2>More writing</h2>
+            <a class="text-link" href={url("/blog/")}>
+              All posts &rarr;
+            </a>
+          </div>
+          {recent.map((post) => (
+            <PostListItem
+              id={post.id}
+              title={post.data.title}
+              description={post.data.description}
+              pubDate={post.data.pubDate}
+              readingTime={readingTimeOf(post)}
+              tags={post.data.tags}
+            />
+          ))}
+        </section>
+      )
+    }
+
+    {
+      topics.length > 0 && (
+        <section class="home__section">
+          <div class="section-title">
+            <h2>Topics</h2>
+            <a class="text-link" href={url("/topics/")}>
+              All topics &rarr;
+            </a>
+          </div>
+          <ul class="tag-list">
+            {topics.map(({ tag, count }) => (
+              <li>
+                <a class="tag" href={tagUrl(tag)}>
+                  {tag} <span class="tag__count">{count}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .home {
+    padding-block: var(--space-10) var(--space-6);
+  }
+
+  .intro {
+    max-width: 46ch;
+    margin-bottom: var(--space-12);
+  }
+
+  .intro__heading {
+    margin-block: var(--space-3) var(--space-4);
+    font-size: var(--text-3xl);
+    font-weight: 620;
+  }
+
+  .intro__body {
+    font-family: var(--font-serif);
+    font-size: var(--text-lg);
+    line-height: var(--leading-prose);
+    color: var(--text-muted);
+  }
+
+  .home__section + .home__section {
+    margin-top: var(--space-12);
+  }
+
+  .tag__count {
+    color: var(--text-faint);
+    font-size: 0.9em;
+  }
+
+  @media (min-width: 48rem) {
+    .home {
+      padding-block: var(--space-14) var(--space-8);
+    }
+
+    .intro {
+      margin-bottom: var(--space-14);
+    }
+  }
+</style>

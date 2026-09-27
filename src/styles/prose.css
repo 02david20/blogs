@@ -1,0 +1,483 @@
+/* ==========================================================================
+   Long-form article body
+   Covers every construct present in the migrated posts: headings with emoji,
+   fenced code with and without a language, fences nested in list items,
+   blockquote callouts containing lists, images with and without captions,
+   hand-rolled <sup> footnotes, horizontal rules and mermaid diagrams.
+   ========================================================================== */
+
+.prose {
+  min-width: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-prose);
+  line-height: var(--leading-prose);
+  color: var(--text);
+  max-width: var(--measure);
+}
+
+/* --- Block rhythm --------------------------------------------------------
+   One rule sets the vertical rhythm; specific elements override it.        */
+
+.prose > * + * {
+  margin-top: var(--space-5);
+}
+
+.prose :is(p, li, h1, h2, h3, h4, h5, h6, td, th) {
+  overflow-wrap: break-word;
+}
+
+/* A heading's own margin-bottom governs the gap to what follows; the generic
+   sibling rhythm above must not stack on top of it. */
+.prose :is(h2, h3, h4, h5, h6) + * {
+  margin-top: 0;
+}
+
+/* --- Headings ------------------------------------------------------------
+   Sans-serif against serif body is what creates the hierarchy here, so the
+   headings need less size contrast than they would in an all-serif setting. */
+
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-snug);
+  scroll-margin-top: var(--space-12);
+}
+
+.prose > h2 {
+  margin-top: var(--space-12);
+  margin-bottom: var(--space-4);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+.prose > h3 {
+  margin-top: var(--space-10);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.prose > h4 {
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.prose > h5,
+.prose > h6 {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The first heading of an article should not push a border against the meta. */
+.prose > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Some headings were authored as `## **Bold**`; the wrapper is redundant. */
+.prose :is(h2, h3, h4) strong {
+  font-weight: inherit;
+}
+
+/* --- Heading anchors ----------------------------------------------------- */
+
+.prose .heading-anchor {
+  margin-left: 0.35em;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+  text-decoration: none;
+  opacity: 0;
+}
+
+.prose :is(h2, h3, h4):hover .heading-anchor,
+.prose .heading-anchor:focus-visible {
+  opacity: 1;
+}
+
+.prose .heading-anchor:hover {
+  color: var(--accent);
+}
+
+@media (hover: none) {
+  .prose .heading-anchor {
+    opacity: 1;
+  }
+}
+
+/* --- Links ---------------------------------------------------------------- */
+
+.prose a:not(.heading-anchor):not(.tag) {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.16em;
+}
+
+.prose a:not(.heading-anchor):not(.tag):hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
+}
+
+/* --- Lists ---------------------------------------------------------------- */
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li + li {
+  margin-top: var(--space-2);
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin-top: var(--space-2);
+}
+
+.prose li::marker {
+  color: var(--text-faint);
+}
+
+.prose ol > li::marker {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+/* Code blocks nested in list items need tighter, symmetric spacing. */
+.prose li > .expressive-code,
+.prose li > pre {
+  margin-block: var(--space-3);
+}
+
+/* --- Blockquote ----------------------------------------------------------
+   Authored as a callout (bold lead-in + nested list), not a quotation, so
+   it gets a panel treatment rather than the usual gray italic.             */
+
+.prose blockquote {
+  padding: var(--space-4) var(--space-5);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background-color: var(--bg-subtle);
+  color: var(--text);
+  font-style: normal;
+}
+
+.prose blockquote > * + * {
+  margin-top: var(--space-3);
+}
+
+.prose blockquote ul,
+.prose blockquote ol {
+  margin-top: var(--space-2);
+}
+
+.prose blockquote :is(p, li):first-child {
+  margin-top: 0;
+}
+
+/* --- Code ----------------------------------------------------------------- */
+
+.prose :not(pre) > code {
+  padding: 0.15em 0.4em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--code-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.855em;
+  word-break: break-word;
+}
+
+.prose :is(h2, h3, h4) code {
+  font-size: 0.9em;
+}
+
+.prose a code {
+  color: inherit;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+/* Fallback for any <pre> not handled by Expressive Code (e.g. raw HTML). */
+.prose pre:not([class*="expressive"]) {
+  overflow-x: auto;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--code-bg);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose pre:not([class*="expressive"]) code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+}
+
+/* Expressive Code blocks: full width of the measure, edge-to-edge on phones. */
+.prose .expressive-code {
+  margin-block: var(--space-6);
+}
+
+/* --- Language indicator ---------------------------------------------------
+   Expressive Code puts `data-language` on the <pre>, which CSS `attr()` cannot
+   read from the frame. Declaring the labels explicitly also lets them read as
+   "C#" and "Bash" rather than "csharp" and "bash". Plaintext stays unlabelled. */
+
+.prose .expressive-code .frame {
+  position: relative;
+}
+
+.prose .expressive-code .frame::after {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* Step aside for the copy button, which occupies the same corner on hover. */
+.prose .expressive-code .frame:hover::after,
+.prose .expressive-code .frame:focus-within::after {
+  opacity: 0;
+}
+
+.prose .expressive-code .frame:has(pre[data-language="csharp"])::after {
+  content: "C#";
+}
+.prose .expressive-code .frame:has(pre[data-language="bash"])::after {
+  content: "Bash";
+}
+.prose .expressive-code .frame:has(pre[data-language="shell"])::after {
+  content: "Shell";
+}
+.prose .expressive-code .frame:has(pre[data-language="json"])::after {
+  content: "JSON";
+}
+.prose .expressive-code .frame:has(pre[data-language="yaml"])::after {
+  content: "YAML";
+}
+.prose .expressive-code .frame:has(pre[data-language="js"])::after,
+.prose .expressive-code .frame:has(pre[data-language="javascript"])::after {
+  content: "JavaScript";
+}
+.prose .expressive-code .frame:has(pre[data-language="ts"])::after,
+.prose .expressive-code .frame:has(pre[data-language="typescript"])::after {
+  content: "TypeScript";
+}
+.prose .expressive-code .frame:has(pre[data-language="python"])::after {
+  content: "Python";
+}
+.prose .expressive-code .frame:has(pre[data-language="sql"])::after {
+  content: "SQL";
+}
+.prose .expressive-code .frame:has(pre[data-language="go"])::after {
+  content: "Go";
+}
+.prose .expressive-code .frame:has(pre[data-language="dockerfile"])::after {
+  content: "Dockerfile";
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .prose .expressive-code .frame::after {
+    transition: opacity var(--duration-fast) var(--ease);
+  }
+}
+
+@media (max-width: 40rem) {
+  .prose .expressive-code {
+    margin-inline: calc(var(--gutter) * -1);
+  }
+
+  .prose .expressive-code .frame pre {
+    border-inline: 0;
+    border-radius: 0;
+  }
+}
+
+/* --- Tables ---------------------------------------------------------------
+   No post uses one today, but Markdown can produce them at any time.       */
+
+.prose .table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+}
+
+.prose :is(th, td) {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+/* --- Figures & images ------------------------------------------------------ */
+
+.prose :is(img, figure) {
+  margin-block: var(--space-6);
+}
+
+.prose img {
+  border-radius: var(--radius-md);
+  margin-inline: auto;
+}
+
+.prose figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.prose figure img {
+  margin: 0;
+}
+
+.prose figcaption {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 46ch;
+}
+
+/* --- Rules ---------------------------------------------------------------- */
+
+.prose hr {
+  margin-block: var(--space-10);
+  border-top: 1px solid var(--border);
+}
+
+/* Section-separator rules read better as a centred mark than a full line. */
+.prose hr::after {
+  content: none;
+}
+
+/* --- Footnote references ---------------------------------------------------
+   These posts use hand-written <sup><a href="#refN"> markers rather than
+   Markdown footnotes, so they are styled directly.                          */
+
+.prose sup {
+  line-height: 0;
+  font-size: 0.7em;
+}
+
+.prose sup a {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-decoration: none !important;
+}
+
+.prose sup a:hover {
+  background-color: var(--selection);
+}
+
+.prose li:target,
+.prose :is(span, a)[id^="ref"]:target {
+  scroll-margin-top: var(--space-12);
+}
+
+.prose li:target {
+  background-color: var(--selection);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 0.4em var(--selection);
+}
+
+/* --- Mermaid --------------------------------------------------------------- */
+
+.prose .mermaid {
+  display: flex;
+  justify-content: center;
+  margin-block: var(--space-6);
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-subtle);
+  overflow-x: auto;
+}
+
+/* Pre-render state: keep the box from collapsing and hide the raw source. */
+.prose .mermaid:not([data-rendered]) {
+  min-height: 6rem;
+  color: transparent;
+}
+
+.prose .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.prose .mermaid[data-failed] {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* --- Misc ------------------------------------------------------------------ */
+
+.prose strong {
+  font-weight: 650;
+}
+
+.prose abbr[title] {
+  text-decoration-style: dotted;
+  cursor: help;
+}
+
+.prose kbd {
+  padding: 0.15em 0.45em;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+}
+
+.prose mark {
+  background-color: var(--selection);
+  color: var(--text);
+  padding: 0.05em 0.2em;
+  border-radius: var(--radius-sm);
+}
