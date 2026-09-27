@@ -245,3 +245,23 @@ a.tag:hover {
 .post-meta__sep {
   opacity: 0.5;
 }
+
+/* In the post index the meta sits in its own date column. Left as a wrapping
+   row it stretches to the full row height, stranding the separator at the end
+   of the first line with a large gap beneath it. */
+.entry__meta {
+  align-self: start;
+  align-content: flex-start;
+}
+
+@media (min-width: 48rem) {
+  .entry__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+  }
+
+  .entry__meta .post-meta__sep {
+    display: none;
+  }
+}

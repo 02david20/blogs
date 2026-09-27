@@ -6,8 +6,6 @@ tags: [".NET", "Diagnostics", "Debugging", "Performance"]
 heroImage: "../../assets/posts/dotnet-dumps/hero.jpg"
 ---
 
-## .NET Dumps: A Comprehensive Guide
-
 In the world of .NET development, debugging production issues can be challenging, especially when problems occur in live environments. .NET dumps provide a powerful way to capture a snapshot of your application's state, enabling post-mortem analysis without the need for live debugging. This guide will equip you with the knowledge to effectively use .NET dumps for diagnosing crashes, memory leaks, performance issues, and more.
 
 **What we'll cover:**

@@ -146,6 +146,13 @@ const { title, description, pubDate, updatedDate, tags, heroImage } = post.data;
       "footer";
   }
 
+  /* Grid items default to min-width:auto, so a wide child (a code block with
+     negative margins, a long unbroken token) can force the column wider than
+     the viewport. */
+  .post__grid > * {
+    min-width: 0;
+  }
+
   .post__header {
     grid-area: header;
     display: flex;

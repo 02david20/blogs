@@ -7,6 +7,7 @@
    ========================================================================== */
 
 .prose {
+  min-width: 0;
   font-family: var(--font-serif);
   font-size: var(--text-prose);
   line-height: var(--leading-prose);
@@ -21,8 +22,14 @@
   margin-top: var(--space-5);
 }
 
-.prose p {
-  margin: 0;
+.prose :is(p, li, h1, h2, h3, h4, h5, h6, td, th) {
+  overflow-wrap: break-word;
+}
+
+/* A heading's own margin-bottom governs the gap to what follows; the generic
+   sibling rhythm above must not stack on top of it. */
+.prose :is(h2, h3, h4, h5, h6) + * {
+  margin-top: 0;
 }
 
 /* --- Headings ------------------------------------------------------------
