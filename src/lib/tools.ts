@@ -104,6 +104,13 @@ export const TOOLS: ToolMeta[] = [
     description:
       "Remove duplicate lines from a block of text in your browser, with case-sensitivity, trimming, and sorting options.",
   },
+  {
+    slug: "escape-sequence-formatter",
+    title: "Escape Sequence Formatter",
+    tagline: "Turn literal \\n, \\r, \\t sequences into real line breaks, or back.",
+    description:
+      "Unescape or escape \\n, \\r, \\t, and backslash sequences in text — turn literal escape codes copied from JSON, logs, or CSV exports into real line breaks and tabs, or the reverse, entirely in your browser.",
+  },
 ];
 
 export const toolBySlug = (slug: string): ToolMeta | undefined =>

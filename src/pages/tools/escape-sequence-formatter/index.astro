@@ -1,0 +1,179 @@
+---
+import ToolLayout from "../../../layouts/ToolLayout.astro";
+import { toolBySlug } from "../../../lib/tools";
+
+const meta = toolBySlug("escape-sequence-formatter")!;
+---
+
+<ToolLayout
+  title={meta.title}
+  tagline={meta.tagline}
+  description={meta.description}
+  related={["text-diff", "remove-duplicate-lines", "json-formatter"]}
+>
+  <Fragment slot="app">
+    <div class="tool-panel">
+      <div class="tool-toolbar tool-toolbar--top">
+        <div class="tool-field">
+          <label for="esc-op">Operation</label>
+          <select id="esc-op" class="tool-select">
+            <option value="unescape">Unescape (\n → real line break)</option>
+            <option value="escape">Escape (real line break → \n)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-grid tool-grid--split">
+        <div class="tool-field">
+          <label for="esc-input">Input</label>
+          <textarea
+            id="esc-input"
+            class="tool-textarea"
+            placeholder={"Paste a passage with literal \\n \\r \\t sequences…"}
+            spellcheck="false"
+          ></textarea>
+        </div>
+        <div class="tool-field">
+          <label for="esc-output">Result</label>
+          <textarea id="esc-output" class="tool-textarea" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <p id="esc-stats" class="esc-stats"></p>
+
+      <div class="tool-toolbar">
+        <button type="button" id="esc-swap" class="tool-btn">Swap</button>
+        <button type="button" id="esc-copy" class="tool-btn tool-btn--primary">Copy result</button>
+        <button type="button" id="esc-download" class="tool-btn">Download .txt</button>
+        <button type="button" id="esc-clear" class="tool-btn">Clear</button>
+      </div>
+    </div>
+  </Fragment>
+
+  <h2>Why text ends up with literal <code>\n</code> and <code>\r</code></h2>
+  <p>
+    When a line break travels through a JSON string, a database export, a log line, or a CSV cell,
+    it's often stored as the two-character sequence <code>\n</code> rather than an actual line
+    break — because a real newline can't appear inside a quoted string in those formats. Copy that
+    value out into a plain text editor and you get a single wall of text littered with visible{" "}
+    <code>\n</code>, <code>\r\n</code>, and <code>\t</code> instead of readable paragraphs and
+    indentation.
+  </p>
+
+  <h2>Unescaping vs. escaping</h2>
+  <p>
+    <strong>Unescape</strong> reads those literal two-character sequences and turns them back into
+    real line breaks and tabs — this is what you want after pasting in a passage that looks like{" "}
+    <code>{"line one\\nline two\\r\\nline three"}</code> and needs to become normally formatted
+    text. <strong>Escape</strong> does the reverse: it takes text with real line breaks and encodes
+    them back into <code>\n</code> / <code>\r</code> / <code>\t</code>, which is useful when you
+    need to paste multi-line text into something that only accepts a single-line value, like a JSON
+    field or a shell argument.
+  </p>
+  <p>
+    Both directions also handle a literal backslash (<code>\\</code>), so a doubly-escaped
+    backslash round-trips correctly instead of being misread as the start of another escape
+    sequence.
+  </p>
+
+  <h2>Example</h2>
+  <p>Given this input, with <strong>Unescape</strong> selected:</p>
+  <pre><code>{"Dear team,\\n\\nThe report is attached.\\r\\nLet me know if anything is missing.\\n\\nThanks"}</code></pre>
+  <p>the result is:</p>
+  <pre><code>{`Dear team,
+
+The report is attached.
+Let me know if anything is missing.
+
+Thanks`}</code></pre>
+  <p>
+    Switch the operation to <strong>Escape</strong> (or hit <strong>Swap</strong>) and it converts
+    right back to the literal <code>\n</code> / <code>\r\n</code> form.
+  </p>
+</ToolLayout>
+
+<style>
+  .esc-stats {
+    margin-top: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--text-faint);
+  }
+</style>
+
+<script>
+  import { copyToClipboard, download } from "../../../lib/tools-client";
+
+  const input = document.getElementById("esc-input") as HTMLTextAreaElement;
+  const output = document.getElementById("esc-output") as HTMLTextAreaElement;
+  const opSelect = document.getElementById("esc-op") as HTMLSelectElement;
+  const stats = document.getElementById("esc-stats") as HTMLParagraphElement;
+  const swapBtn = document.getElementById("esc-swap") as HTMLButtonElement;
+  const copyBtn = document.getElementById("esc-copy") as HTMLButtonElement;
+  const downloadBtn = document.getElementById("esc-download") as HTMLButtonElement;
+  const clearBtn = document.getElementById("esc-clear") as HTMLButtonElement;
+
+  const UNESCAPE_MAP: Record<string, string> = {
+    "\\\\": "\\",
+    "\\n": "\n",
+    "\\r": "\r",
+    "\\t": "\t",
+  };
+
+  const ESCAPE_MAP: Record<string, string> = {
+    "\\": "\\\\",
+    "\n": "\\n",
+    "\r": "\\r",
+    "\t": "\\t",
+  };
+
+  function convert(value: string, map: Record<string, string>, pattern: RegExp): { result: string; count: number } {
+    let count = 0;
+    const result = value.replace(pattern, (match) => {
+      count++;
+      return map[match];
+    });
+    return { result, count };
+  }
+
+  function process() {
+    const value = input.value;
+    if (value === "") {
+      output.value = "";
+      stats.textContent = "";
+      return;
+    }
+
+    const isUnescape = opSelect.value === "unescape";
+    const { result, count } = isUnescape
+      ? convert(value, UNESCAPE_MAP, /\\\\|\\n|\\r|\\t/g)
+      : convert(value, ESCAPE_MAP, /\\|\r|\n|\t/g);
+
+    output.value = result;
+    stats.textContent = `${count} sequence${count === 1 ? "" : "s"} ${
+      isUnescape ? "unescaped into real characters" : "escaped into literal form"
+    }.`;
+  }
+
+  input.addEventListener("input", process);
+  opSelect.addEventListener("change", process);
+
+  swapBtn.addEventListener("click", () => {
+    const previousInput = input.value;
+    input.value = output.value;
+    output.value = previousInput;
+    opSelect.value = opSelect.value === "unescape" ? "escape" : "unescape";
+    process();
+  });
+
+  copyBtn.addEventListener("click", () => copyToClipboard(output.value, copyBtn));
+
+  downloadBtn.addEventListener("click", () => download("formatted-text.txt", output.value));
+
+  clearBtn.addEventListener("click", () => {
+    input.value = "";
+    output.value = "";
+    stats.textContent = "";
+    input.focus();
+  });
+</script>
